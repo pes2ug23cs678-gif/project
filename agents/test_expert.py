@@ -236,7 +236,7 @@ class TestExpert:
         result: TestResult,
         context: dict[str, Any],
     ) -> str:
-        """Assemble the structured test-generation prompt."""
+        """Assemble a structured, chain-of-thought test-generation prompt."""
         case_summary = "\n".join(
             f"  - [{tc.category}] {tc.name}: {tc.description}"
             for tc in result.test_cases
@@ -245,7 +245,7 @@ class TestExpert:
         cobol_section = ""
         if cobol_source.strip():
             cobol_section = f"""
-## Original COBOL Source (reference)
+## Original COBOL Source (reference for deriving expected values)
 ```cobol
 {cobol_source.strip()}
 ```
@@ -258,11 +258,14 @@ class TestExpert:
             )
 
         return f"""\
-You are a Python test-generation expert for COBOL-to-Python migrations.
+You are a senior QA engineer specialising in COBOL-to-Python migration
+testing. You write thorough, deterministic pytest test suites that verify
+both functional correctness and COBOL-semantic equivalence.
 
 ## Task
-Complete the pytest test suite below so every test has meaningful
-assertions that verify correctness of the translated Python code.
+Complete the pytest test suite below so every test case has meaningful,
+deterministic assertions that verify the translated Python code is
+functionally equivalent to the original COBOL program.
 
 ## Python Code Under Test
 ```python
@@ -278,13 +281,56 @@ assertions that verify correctness of the translated Python code.
 ```
 {rag_section}
 
-## Instructions
-1. Replace every `pass` with concrete assertions (assert, pytest.raises, etc.).
-2. For boundary tests, use the min/max values shown in the inputs.
-3. For type checks, use `isinstance()`.
-4. For error tests, use `pytest.raises(...)` with the expected exception.
-5. Derive expected values from the COBOL source logic.
-6. Return the complete test file, no explanations.
+## Chain-of-Thought Instructions
+Follow these steps IN ORDER:
+
+1. **READ** each COBOL paragraph and understand what it computes.
+2. **DERIVE** the expected output for each test scenario by manually
+   tracing through the COBOL logic with the given inputs.
+3. **CHOOSE** the right assertion pattern for each test category:
+   - `happy_path`  → `assert function() == expected_value`
+   - `boundary`    → `assert function(min_val)` and `assert function(max_val)`
+   - `type_check`  → `assert isinstance(var, expected_type)`
+   - `error`       → `with pytest.raises(ExpectedException):`
+4. **WRITE** the assertions, replacing every `pass` stub.
+5. **VERIFY** that each test is self-contained and does not depend on
+   execution order.
+
+## Few-Shot Example
+
+### COBOL Logic
+```cobol
+COMPUTE WS-TAX = WS-SALARY * 0.30.
+```
+
+### Corresponding Test
+```python
+class TestCalculateTax:
+    def test_calculate_tax_happy_path(self):
+        \"\"\"Verify tax is 30% of salary.\"\"\"
+        import payroll
+        payroll.ws_salary = Decimal("1000")
+        payroll.calculate_tax()
+        assert payroll.ws_tax == Decimal("300.00"), (
+            f"Expected 300.00, got {{payroll.ws_tax}}"
+        )
+
+    def test_calculate_tax_zero_salary(self):
+        \"\"\"Boundary: zero salary should produce zero tax.\"\"\"
+        import payroll
+        payroll.ws_salary = Decimal("0")
+        payroll.calculate_tax()
+        assert payroll.ws_tax == Decimal("0")
+```
+
+## Output Format
+Return ONLY the complete pytest file. Do not include explanations
+outside the code block. Every test must have at least one `assert`
+statement or a `pytest.raises` context manager.
+
+```python
+[complete test file here]
+```
 """
 
     # ------------------------------------------------------------------

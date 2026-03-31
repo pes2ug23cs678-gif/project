@@ -210,6 +210,10 @@ class AgentController:
                 "iteration": retries,
                 "error_type": debug_result["error_type"],
                 "error_summary": debug_result["error_summary"],
+                "severity": debug_result.get("severity", 0),
+                "root_cause": debug_result.get("root_cause", ""),
+                "traceback_frames": debug_result.get("traceback_frames", []),
+                "offending_lines": debug_result.get("offending_lines", []),
                 "fix_suggestions": debug_result["fix_suggestions"],
             })
 
