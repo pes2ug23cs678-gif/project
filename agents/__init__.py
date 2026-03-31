@@ -1,27 +1,21 @@
-"""
-agents — Modular multi-agent system for COBOL-to-Python migration.
+"""COBOL-to-Python multi-agent migration system.
 
-This package exposes the core components:
-  - Router: classifies task complexity and determines routing
-  - StructureExpert: parses COBOL structure into a logical map
-  - TranslationExpert: converts COBOL logic to Python code
-  - DebugExpert: diagnoses and fixes errors in generated Python
-  - TestExpert: generates pytest-style test cases
-  - AgentController: orchestrates the full pipeline
+Public API:
+
+    from agents import AgentController, PipelineConfig, Complexity, Severity
+
+    controller = AgentController()
+    result = controller.run(cobol_source=src)
 """
 
-from agents.router import Router
-from agents.structure_expert import StructureExpert
-from agents.translation_expert import TranslationExpert
-from agents.debug_expert import DebugExpert
-from agents.test_expert import TestExpert
-from agents.agent_controller import AgentController
+__version__ = "1.0.0"
+
+from agents.config import Complexity, PipelineConfig, Severity  # noqa: F401
+from agents.agent_controller import AgentController              # noqa: F401
 
 __all__ = [
-    "Router",
-    "StructureExpert",
-    "TranslationExpert",
-    "DebugExpert",
-    "TestExpert",
     "AgentController",
+    "Complexity",
+    "PipelineConfig",
+    "Severity",
 ]
