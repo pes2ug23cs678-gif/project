@@ -1,0 +1,75 @@
+====================================================================
+  COBOL → Python Pipeline · Evaluation Report
+====================================================================
+  Generated : 2026-04-05 13:23:59
+  Test file : /home/bluedragon/Genai_Full/project/evaluation/test_cases.json
+  Total     : 8
+
+  Test: Simple Addition  [EASY]
+    Status     : PASS
+    Match      : ✓
+    Iterations : 1
+    Confidence : 100.0%
+    Time       : 0.039s
+----------------------------------------
+  Test: Display Greeting  [EASY]
+    Status     : PASS
+    Match      : ✓
+    Iterations : 1
+    Confidence : 100.0%
+    Time       : 0.038s
+----------------------------------------
+  Test: Subtract and Display  [EASY]
+    Status     : PASS
+    Match      : ✓
+    Iterations : 1
+    Confidence : 100.0%
+    Time       : 0.037s
+----------------------------------------
+  Test: If-Else Grade Check  [MEDIUM]
+    Status     : PASS
+    Match      : ✓
+    Iterations : 1
+    Confidence : 100.0%
+    Time       : 0.038s
+----------------------------------------
+  Test: Perform Loop Counter  [MEDIUM]
+    Status     : FAIL
+    Match      : ✗
+    Iterations : 1
+    Confidence : 0.0%
+    Time       : 0.118s
+----------------------------------------
+  Test: Evaluate Statement  [MEDIUM]
+    Status     : PASS
+    Match      : ✓
+    Iterations : 1
+    Confidence : 100.0%
+    Time       : 0.044s
+----------------------------------------
+  Test: Nested IF with Compute  [HARD]
+    Status     : PASS
+    Match      : ✓
+    Iterations : 1
+    Confidence : 100.0%
+    Time       : 0.041s
+----------------------------------------
+  Test: Payroll with PERFORM and 88-level  [HARD]
+    Status     : PASS
+    Match      : ✓
+    Iterations : 1
+    Confidence : 100.0%
+    Time       : 0.043s
+----------------------------------------
+
+  ── Summary ──
+    Test Pass Rate       : 87.5%
+    Execution Success    : 100.0%
+    Avg Debug Iterations : 1.00
+    Avg Confidence Score : 87.5%
+    Total Time           : 0.398s
+
+    [EASY]  pass=3/3  rate=100%
+    [HARD]  pass=2/2  rate=100%
+    [MEDIUM]  pass=2/3  rate=67%
+====================================================================

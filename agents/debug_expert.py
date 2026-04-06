@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from agents.base import BaseExpert
-from agents.config import ERROR_SEVERITY, Severity
+from config import ERROR_SEVERITY, Severity
 from agents.prompts import DebugPrompt
 
 

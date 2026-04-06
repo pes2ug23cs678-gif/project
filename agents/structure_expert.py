@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from agents.base import BaseExpert
-from agents.config import COBOL_KEYWORDS
+from config import COBOL_KEYWORDS
 from agents.prompts import StructurePrompt
 
 

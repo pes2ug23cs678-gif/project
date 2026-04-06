@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from agents.config import Complexity, RouterConfig
+from config import Complexity, RouterConfig
 
 
 @dataclass

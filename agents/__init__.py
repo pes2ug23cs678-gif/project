@@ -10,7 +10,7 @@ Public API:
 
 __version__ = "1.0.0"
 
-from agents.config import Complexity, PipelineConfig, Severity  # noqa: F401
+from config import Complexity, PipelineConfig, Severity  # noqa: F401
 from agents.agent_controller import AgentController              # noqa: F401
 
 __all__ = [

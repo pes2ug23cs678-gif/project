@@ -1,0 +1,1063 @@
+{
+  "meta": {
+    "test_file": "/home/bluedragon/Genai_Full/project/evaluation/test_cases.json",
+    "generated_at": "2026-04-05T13:33:08+0530",
+    "total_tests": 12,
+    "systems": [
+      "baseline",
+      "rag_only",
+      "full_system"
+    ]
+  },
+  "system_metrics": {
+    "baseline": {
+      "system_name": "Baseline LLM",
+      "total_tests": 12,
+      "passed": 4,
+      "failed": 8,
+      "errors": 0,
+      "test_pass_rate": 33.33333333333333,
+      "execution_success_rate": 41.66666666666667,
+      "avg_debug_iterations": 0.0,
+      "avg_execution_time": 0.0583108637499663,
+      "failure_detection_rate": 87.5,
+      "silent_error_rate": 8.333333333333332,
+      "avg_confidence": 46.504660864705905,
+      "by_category": {
+        "arithmetic": {
+          "total": 4,
+          "passed": 1,
+          "pass_rate": 25.0
+        },
+        "conditional": {
+          "total": 3,
+          "passed": 2,
+          "pass_rate": 66.66666666666666
+        },
+        "loop": {
+          "total": 2,
+          "passed": 0,
+          "pass_rate": 0.0
+        },
+        "nested": {
+          "total": 3,
+          "passed": 1,
+          "pass_rate": 33.33333333333333
+        }
+      },
+      "by_difficulty": {
+        "easy": {
+          "total": 4,
+          "passed": 1,
+          "pass_rate": 25.0
+        },
+        "hard": {
+          "total": 4,
+          "passed": 1,
+          "pass_rate": 25.0
+        },
+        "medium": {
+          "total": 4,
+          "passed": 2,
+          "pass_rate": 50.0
+        }
+      }
+    },
+    "rag_only": {
+      "system_name": "RAG-Only",
+      "total_tests": 12,
+      "passed": 8,
+      "failed": 4,
+      "errors": 0,
+      "test_pass_rate": 66.66666666666666,
+      "execution_success_rate": 100.0,
+      "avg_debug_iterations": 1.0,
+      "avg_execution_time": 0.058090163500158574,
+      "failure_detection_rate": 0.0,
+      "silent_error_rate": 33.33333333333333,
+      "avg_confidence": 71.66203847804931,
+      "by_category": {
+        "arithmetic": {
+          "total": 4,
+          "passed": 4,
+          "pass_rate": 100.0
+        },
+        "conditional": {
+          "total": 3,
+          "passed": 3,
+          "pass_rate": 100.0
+        },
+        "loop": {
+          "total": 2,
+          "passed": 0,
+          "pass_rate": 0.0
+        },
+        "nested": {
+          "total": 3,
+          "passed": 1,
+          "pass_rate": 33.33333333333333
+        }
+      },
+      "by_difficulty": {
+        "easy": {
+          "total": 4,
+          "passed": 4,
+          "pass_rate": 100.0
+        },
+        "hard": {
+          "total": 4,
+          "passed": 1,
+          "pass_rate": 25.0
+        },
+        "medium": {
+          "total": 4,
+          "passed": 3,
+          "pass_rate": 75.0
+        }
+      }
+    },
+    "full_system": {
+      "system_name": "Full Agentic RAG",
+      "total_tests": 12,
+      "passed": 9,
+      "failed": 3,
+      "errors": 0,
+      "test_pass_rate": 75.0,
+      "execution_success_rate": 100.0,
+      "avg_debug_iterations": 1.0,
+      "avg_execution_time": 0.05743544799997835,
+      "failure_detection_rate": 0.0,
+      "silent_error_rate": 25.0,
+      "avg_confidence": 75.0,
+      "by_category": {
+        "arithmetic": {
+          "total": 4,
+          "passed": 4,
+          "pass_rate": 100.0
+        },
+        "conditional": {
+          "total": 3,
+          "passed": 3,
+          "pass_rate": 100.0
+        },
+        "loop": {
+          "total": 2,
+          "passed": 0,
+          "pass_rate": 0.0
+        },
+        "nested": {
+          "total": 3,
+          "passed": 2,
+          "pass_rate": 66.66666666666666
+        }
+      },
+      "by_difficulty": {
+        "easy": {
+          "total": 4,
+          "passed": 4,
+          "pass_rate": 100.0
+        },
+        "hard": {
+          "total": 4,
+          "passed": 2,
+          "pass_rate": 50.0
+        },
+        "medium": {
+          "total": 4,
+          "passed": 3,
+          "pass_rate": 75.0
+        }
+      }
+    }
+  },
+  "system_results": {
+    "baseline": [
+      {
+        "name": "Simple Addition",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "Baseline LLM",
+        "status": "FAIL",
+        "execution_success": false,
+        "output_correct": false,
+        "silent_error": false,
+        "expected_output": "SUM = 0400",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 0,
+        "confidence_score": 17.858617001402788,
+        "elapsed_seconds": 0.04071709599975293,
+        "error_message": ""
+      },
+      {
+        "name": "Display Greeting",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "Baseline LLM",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "HELLO, WORLD!",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 0,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.038825538999844866,
+        "error_message": ""
+      },
+      {
+        "name": "Subtract and Display",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "Baseline LLM",
+        "status": "FAIL",
+        "execution_success": false,
+        "output_correct": false,
+        "silent_error": false,
+        "expected_output": "DIFFERENCE = 0650",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 0,
+        "confidence_score": 0.029681055027239722,
+        "elapsed_seconds": 0.037390890999631665,
+        "error_message": ""
+      },
+      {
+        "name": "Multiply and Compute",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "Baseline LLM",
+        "status": "FAIL",
+        "execution_success": false,
+        "output_correct": false,
+        "silent_error": false,
+        "expected_output": "PRODUCT = 00060",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 0,
+        "confidence_score": 26.04767612991564,
+        "elapsed_seconds": 0.03799227600029553,
+        "error_message": ""
+      },
+      {
+        "name": "If-Else Grade Check",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "Baseline LLM",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "GRADE: B",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 0,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03680202099985763,
+        "error_message": ""
+      },
+      {
+        "name": "Evaluate Day Type",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "Baseline LLM",
+        "status": "FAIL",
+        "execution_success": false,
+        "output_correct": false,
+        "silent_error": false,
+        "expected_output": "DAY TYPE: WEEKDAY",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 0,
+        "confidence_score": 5.878152520770916,
+        "elapsed_seconds": 0.038245613999606576,
+        "error_message": ""
+      },
+      {
+        "name": "Sign Detection",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "Baseline LLM",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "SIGN: NEGATIVE",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 0,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.038002604999746836,
+        "error_message": ""
+      },
+      {
+        "name": "Perform Loop Sum",
+        "category": "loop",
+        "difficulty": "medium",
+        "system": "Baseline LLM",
+        "status": "FAIL",
+        "execution_success": true,
+        "output_correct": false,
+        "silent_error": true,
+        "expected_output": "TOTAL = 015",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 0,
+        "confidence_score": 0.0,
+        "elapsed_seconds": 0.11659642100039491,
+        "error_message": ""
+      },
+      {
+        "name": "Factorial Compute",
+        "category": "loop",
+        "difficulty": "hard",
+        "system": "Baseline LLM",
+        "status": "FAIL",
+        "execution_success": false,
+        "output_correct": false,
+        "silent_error": false,
+        "expected_output": "FACTORIAL = 00120",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 0,
+        "confidence_score": 35.84668515620578,
+        "elapsed_seconds": 0.11758176700004697,
+        "error_message": ""
+      },
+      {
+        "name": "Nested IF with Compute",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "Baseline LLM",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "TAX = 15000.00\nNET = 60000.00",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 0,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03985934800039104,
+        "error_message": ""
+      },
+      {
+        "name": "Payroll with PERFORM and 88-level",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "Baseline LLM",
+        "status": "FAIL",
+        "execution_success": false,
+        "output_correct": false,
+        "silent_error": false,
+        "expected_output": "NET PAY: 4500.00",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 0,
+        "confidence_score": 39.925948982122335,
+        "elapsed_seconds": 0.040218516000095406,
+        "error_message": ""
+      },
+      {
+        "name": "Accumulator with Nested Loop",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "Baseline LLM",
+        "status": "FAIL",
+        "execution_success": false,
+        "output_correct": false,
+        "silent_error": false,
+        "expected_output": "TOTAL = 00036",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 0,
+        "confidence_score": 32.469169531026154,
+        "elapsed_seconds": 0.11749827099993126,
+        "error_message": ""
+      }
+    ],
+    "rag_only": [
+      {
+        "name": "Simple Addition",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "RAG-Only",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "SUM = 0400",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03844742399996903,
+        "error_message": ""
+      },
+      {
+        "name": "Display Greeting",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "RAG-Only",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "HELLO, WORLD!",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03759082800024771,
+        "error_message": ""
+      },
+      {
+        "name": "Subtract and Display",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "RAG-Only",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "DIFFERENCE = 0650",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03748224399987521,
+        "error_message": ""
+      },
+      {
+        "name": "Multiply and Compute",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "RAG-Only",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "PRODUCT = 00060",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.037824580000233254,
+        "error_message": ""
+      },
+      {
+        "name": "If-Else Grade Check",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "RAG-Only",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "GRADE: B",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.038225455000429065,
+        "error_message": ""
+      },
+      {
+        "name": "Evaluate Day Type",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "RAG-Only",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "DAY TYPE: WEEKDAY",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03756910700030858,
+        "error_message": ""
+      },
+      {
+        "name": "Sign Detection",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "RAG-Only",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "SIGN: NEGATIVE",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03851427999961743,
+        "error_message": ""
+      },
+      {
+        "name": "Perform Loop Sum",
+        "category": "loop",
+        "difficulty": "medium",
+        "system": "RAG-Only",
+        "status": "FAIL",
+        "execution_success": true,
+        "output_correct": false,
+        "silent_error": true,
+        "expected_output": "TOTAL = 015",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 1,
+        "confidence_score": 0.0,
+        "elapsed_seconds": 0.11897978500019235,
+        "error_message": ""
+      },
+      {
+        "name": "Factorial Compute",
+        "category": "loop",
+        "difficulty": "hard",
+        "system": "RAG-Only",
+        "status": "FAIL",
+        "execution_success": true,
+        "output_correct": false,
+        "silent_error": true,
+        "expected_output": "FACTORIAL = 00120",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 1,
+        "confidence_score": 0.0,
+        "elapsed_seconds": 0.11742385000070499,
+        "error_message": ""
+      },
+      {
+        "name": "Nested IF with Compute",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "RAG-Only",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "TAX = 15000.00\nNET = 60000.00",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03861758600032772,
+        "error_message": ""
+      },
+      {
+        "name": "Payroll with PERFORM and 88-level",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "RAG-Only",
+        "status": "FAIL",
+        "execution_success": true,
+        "output_correct": false,
+        "silent_error": true,
+        "expected_output": "NET PAY: 4500.00",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 1,
+        "confidence_score": 59.944461736591755,
+        "elapsed_seconds": 0.03931558199928986,
+        "error_message": ""
+      },
+      {
+        "name": "Accumulator with Nested Loop",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "RAG-Only",
+        "status": "FAIL",
+        "execution_success": true,
+        "output_correct": false,
+        "silent_error": true,
+        "expected_output": "TOTAL = 00036",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 1,
+        "confidence_score": 0.0,
+        "elapsed_seconds": 0.11709124100070767,
+        "error_message": ""
+      }
+    ],
+    "full_system": [
+      {
+        "name": "Simple Addition",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "SUM = 0400",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03822074599975167,
+        "error_message": ""
+      },
+      {
+        "name": "Display Greeting",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "HELLO, WORLD!",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.038559215000532276,
+        "error_message": ""
+      },
+      {
+        "name": "Subtract and Display",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "DIFFERENCE = 0650",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03728257700004178,
+        "error_message": ""
+      },
+      {
+        "name": "Multiply and Compute",
+        "category": "arithmetic",
+        "difficulty": "easy",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "PRODUCT = 00060",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.0368533569999272,
+        "error_message": ""
+      },
+      {
+        "name": "If-Else Grade Check",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "GRADE: B",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03701642499981972,
+        "error_message": ""
+      },
+      {
+        "name": "Evaluate Day Type",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "DAY TYPE: WEEKDAY",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03743880099955277,
+        "error_message": ""
+      },
+      {
+        "name": "Sign Detection",
+        "category": "conditional",
+        "difficulty": "medium",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "SIGN: NEGATIVE",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.037363328000537877,
+        "error_message": ""
+      },
+      {
+        "name": "Perform Loop Sum",
+        "category": "loop",
+        "difficulty": "medium",
+        "system": "Full Agentic RAG",
+        "status": "FAIL",
+        "execution_success": true,
+        "output_correct": false,
+        "silent_error": true,
+        "expected_output": "TOTAL = 015",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 1,
+        "confidence_score": 0.0,
+        "elapsed_seconds": 0.11659933299961267,
+        "error_message": ""
+      },
+      {
+        "name": "Factorial Compute",
+        "category": "loop",
+        "difficulty": "hard",
+        "system": "Full Agentic RAG",
+        "status": "FAIL",
+        "execution_success": true,
+        "output_correct": false,
+        "silent_error": true,
+        "expected_output": "FACTORIAL = 00120",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 1,
+        "confidence_score": 0.0,
+        "elapsed_seconds": 0.11936478100051318,
+        "error_message": ""
+      },
+      {
+        "name": "Nested IF with Compute",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "TAX = 15000.00\nNET = 60000.00",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.03734848099975352,
+        "error_message": ""
+      },
+      {
+        "name": "Payroll with PERFORM and 88-level",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "Full Agentic RAG",
+        "status": "PASS",
+        "execution_success": true,
+        "output_correct": true,
+        "silent_error": false,
+        "expected_output": "NET PAY: 4500.00",
+        "actual_output": "",
+        "match_score": 1.0,
+        "match_strategy": "pipeline_validator",
+        "debug_iterations": 1,
+        "confidence_score": 100.0,
+        "elapsed_seconds": 0.038453014999504376,
+        "error_message": ""
+      },
+      {
+        "name": "Accumulator with Nested Loop",
+        "category": "nested",
+        "difficulty": "hard",
+        "system": "Full Agentic RAG",
+        "status": "FAIL",
+        "execution_success": true,
+        "output_correct": false,
+        "silent_error": true,
+        "expected_output": "TOTAL = 00036",
+        "actual_output": "",
+        "match_score": 0.0,
+        "match_strategy": "fuzzy_similarity",
+        "debug_iterations": 1,
+        "confidence_score": 0.0,
+        "elapsed_seconds": 0.11472531700019317,
+        "error_message": ""
+      }
+    ]
+  },
+  "ablation_study": [
+    {
+      "config_name": "Full System (RAG + Debug)",
+      "rag_enabled": true,
+      "debug_enabled": true,
+      "metrics": {
+        "system_name": "Full System (RAG + Debug)",
+        "total_tests": 12,
+        "passed": 9,
+        "failed": 3,
+        "errors": 0,
+        "test_pass_rate": 75.0,
+        "execution_success_rate": 100.0,
+        "avg_debug_iterations": 1.0,
+        "avg_execution_time": 0.05732973449979303,
+        "failure_detection_rate": 0.0,
+        "silent_error_rate": 25.0,
+        "avg_confidence": 75.0,
+        "by_category": {
+          "arithmetic": {
+            "total": 4,
+            "passed": 4,
+            "pass_rate": 100.0
+          },
+          "conditional": {
+            "total": 3,
+            "passed": 3,
+            "pass_rate": 100.0
+          },
+          "loop": {
+            "total": 2,
+            "passed": 0,
+            "pass_rate": 0.0
+          },
+          "nested": {
+            "total": 3,
+            "passed": 2,
+            "pass_rate": 66.66666666666666
+          }
+        },
+        "by_difficulty": {
+          "easy": {
+            "total": 4,
+            "passed": 4,
+            "pass_rate": 100.0
+          },
+          "hard": {
+            "total": 4,
+            "passed": 2,
+            "pass_rate": 50.0
+          },
+          "medium": {
+            "total": 4,
+            "passed": 3,
+            "pass_rate": 75.0
+          }
+        }
+      }
+    },
+    {
+      "config_name": "RAG Only (no Debug)",
+      "rag_enabled": true,
+      "debug_enabled": false,
+      "metrics": {
+        "system_name": "RAG Only (no Debug)",
+        "total_tests": 12,
+        "passed": 8,
+        "failed": 4,
+        "errors": 0,
+        "test_pass_rate": 66.66666666666666,
+        "execution_success_rate": 100.0,
+        "avg_debug_iterations": 1.0,
+        "avg_execution_time": 0.05717673641674992,
+        "failure_detection_rate": 0.0,
+        "silent_error_rate": 33.33333333333333,
+        "avg_confidence": 71.66203847804931,
+        "by_category": {
+          "arithmetic": {
+            "total": 4,
+            "passed": 4,
+            "pass_rate": 100.0
+          },
+          "conditional": {
+            "total": 3,
+            "passed": 3,
+            "pass_rate": 100.0
+          },
+          "loop": {
+            "total": 2,
+            "passed": 0,
+            "pass_rate": 0.0
+          },
+          "nested": {
+            "total": 3,
+            "passed": 1,
+            "pass_rate": 33.33333333333333
+          }
+        },
+        "by_difficulty": {
+          "easy": {
+            "total": 4,
+            "passed": 4,
+            "pass_rate": 100.0
+          },
+          "hard": {
+            "total": 4,
+            "passed": 1,
+            "pass_rate": 25.0
+          },
+          "medium": {
+            "total": 4,
+            "passed": 3,
+            "pass_rate": 75.0
+          }
+        }
+      }
+    },
+    {
+      "config_name": "Debug Only (no RAG)",
+      "rag_enabled": false,
+      "debug_enabled": true,
+      "metrics": {
+        "system_name": "Debug Only (no RAG)",
+        "total_tests": 12,
+        "passed": 5,
+        "failed": 7,
+        "errors": 0,
+        "test_pass_rate": 41.66666666666667,
+        "execution_success_rate": 100.0,
+        "avg_debug_iterations": 1.0,
+        "avg_execution_time": 0.057514406083100766,
+        "failure_detection_rate": 0.0,
+        "silent_error_rate": 58.333333333333336,
+        "avg_confidence": 55.035396353948606,
+        "by_category": {
+          "arithmetic": {
+            "total": 4,
+            "passed": 2,
+            "pass_rate": 50.0
+          },
+          "conditional": {
+            "total": 3,
+            "passed": 2,
+            "pass_rate": 66.66666666666666
+          },
+          "loop": {
+            "total": 2,
+            "passed": 0,
+            "pass_rate": 0.0
+          },
+          "nested": {
+            "total": 3,
+            "passed": 1,
+            "pass_rate": 33.33333333333333
+          }
+        },
+        "by_difficulty": {
+          "easy": {
+            "total": 4,
+            "passed": 2,
+            "pass_rate": 50.0
+          },
+          "hard": {
+            "total": 4,
+            "passed": 1,
+            "pass_rate": 25.0
+          },
+          "medium": {
+            "total": 4,
+            "passed": 2,
+            "pass_rate": 50.0
+          }
+        }
+      }
+    },
+    {
+      "config_name": "No RAG, No Debug (Baseline)",
+      "rag_enabled": false,
+      "debug_enabled": false,
+      "metrics": {
+        "system_name": "No RAG, No Debug (Baseline)",
+        "total_tests": 12,
+        "passed": 4,
+        "failed": 8,
+        "errors": 0,
+        "test_pass_rate": 33.33333333333333,
+        "execution_success_rate": 41.66666666666667,
+        "avg_debug_iterations": 0.0,
+        "avg_execution_time": 0.057156401166669944,
+        "failure_detection_rate": 87.5,
+        "silent_error_rate": 8.333333333333332,
+        "avg_confidence": 46.504660864705905,
+        "by_category": {
+          "arithmetic": {
+            "total": 4,
+            "passed": 1,
+            "pass_rate": 25.0
+          },
+          "conditional": {
+            "total": 3,
+            "passed": 2,
+            "pass_rate": 66.66666666666666
+          },
+          "loop": {
+            "total": 2,
+            "passed": 0,
+            "pass_rate": 0.0
+          },
+          "nested": {
+            "total": 3,
+            "passed": 1,
+            "pass_rate": 33.33333333333333
+          }
+        },
+        "by_difficulty": {
+          "easy": {
+            "total": 4,
+            "passed": 1,
+            "pass_rate": 25.0
+          },
+          "hard": {
+            "total": 4,
+            "passed": 1,
+            "pass_rate": 25.0
+          },
+          "medium": {
+            "total": 4,
+            "passed": 2,
+            "pass_rate": 50.0
+          }
+        }
+      }
+    }
+  ]
+}

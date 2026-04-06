@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Simple Addition",
+    "category": "arithmetic",
+    "difficulty": "easy",
+    "description": "Add two numbers and display the sum.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. ADD-NUMS.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-A   PIC 9(3) VALUE 150.\n       01 WS-B   PIC 9(3) VALUE 250.\n       01 WS-SUM PIC 9(4) VALUE 0.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           ADD WS-A TO WS-B GIVING WS-SUM.\n           DISPLAY 'SUM = ' WS-SUM.\n           STOP RUN.",
+    "expected_output": "SUM = 0400"
+  },
+  {
+    "name": "Display Greeting",
+    "category": "arithmetic",
+    "difficulty": "easy",
+    "description": "Display a static greeting — minimal logic.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. GREET.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           DISPLAY 'HELLO, WORLD!'.\n           STOP RUN.",
+    "expected_output": "HELLO, WORLD!"
+  },
+  {
+    "name": "Subtract and Display",
+    "category": "arithmetic",
+    "difficulty": "easy",
+    "description": "Subtract two values and display the difference.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. SUBTRACT-DEMO.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-X    PIC 9(4) VALUE 1000.\n       01 WS-Y    PIC 9(4) VALUE 0350.\n       01 WS-DIFF PIC 9(4) VALUE 0.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           SUBTRACT WS-Y FROM WS-X GIVING WS-DIFF.\n           DISPLAY 'DIFFERENCE = ' WS-DIFF.\n           STOP RUN.",
+    "expected_output": "DIFFERENCE = 0650"
+  },
+  {
+    "name": "Multiply and Compute",
+    "category": "arithmetic",
+    "difficulty": "easy",
+    "description": "Multiply two variables using COMPUTE verb.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. MULT-DEMO.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-A      PIC 9(3) VALUE 012.\n       01 WS-B      PIC 9(3) VALUE 005.\n       01 WS-RESULT PIC 9(5) VALUE 0.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           COMPUTE WS-RESULT = WS-A * WS-B.\n           DISPLAY 'PRODUCT = ' WS-RESULT.\n           STOP RUN.",
+    "expected_output": "PRODUCT = 00060"
+  },
+  {
+    "name": "If-Else Grade Check",
+    "category": "conditional",
+    "difficulty": "medium",
+    "description": "Classify a score into letter grades using IF/ELSE.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. GRADE-CHECK.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-SCORE PIC 9(3) VALUE 085.\n       01 WS-GRADE PIC A(1).\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           IF WS-SCORE >= 90\n               MOVE 'A' TO WS-GRADE\n           ELSE IF WS-SCORE >= 80\n               MOVE 'B' TO WS-GRADE\n           ELSE IF WS-SCORE >= 70\n               MOVE 'C' TO WS-GRADE\n           ELSE\n               MOVE 'F' TO WS-GRADE\n           END-IF.\n           DISPLAY 'GRADE: ' WS-GRADE.\n           STOP RUN.",
+    "expected_output": "GRADE: B"
+  },
+  {
+    "name": "Evaluate Day Type",
+    "category": "conditional",
+    "difficulty": "medium",
+    "description": "Use EVALUATE (switch-case) to classify weekday vs weekend.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. DAY-TYPE.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-DAY  PIC 9(1) VALUE 3.\n       01 WS-TYPE PIC X(10).\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           EVALUATE WS-DAY\n               WHEN 1 THRU 5\n                   MOVE 'WEEKDAY' TO WS-TYPE\n               WHEN 6\n                   MOVE 'SATURDAY' TO WS-TYPE\n               WHEN 7\n                   MOVE 'SUNDAY' TO WS-TYPE\n               WHEN OTHER\n                   MOVE 'INVALID' TO WS-TYPE\n           END-EVALUATE.\n           DISPLAY 'DAY TYPE: ' WS-TYPE.\n           STOP RUN.",
+    "expected_output": "DAY TYPE: WEEKDAY"
+  },
+  {
+    "name": "Sign Detection",
+    "category": "conditional",
+    "difficulty": "medium",
+    "description": "Determine if a number is positive, negative, or zero.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. SIGN-CHECK.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-NUM  PIC S9(4) VALUE -42.\n       01 WS-SIGN PIC X(10).\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           IF WS-NUM > 0\n               MOVE 'POSITIVE' TO WS-SIGN\n           ELSE IF WS-NUM < 0\n               MOVE 'NEGATIVE' TO WS-SIGN\n           ELSE\n               MOVE 'ZERO' TO WS-SIGN\n           END-IF.\n           DISPLAY 'SIGN: ' WS-SIGN.\n           STOP RUN.",
+    "expected_output": "SIGN: NEGATIVE"
+  },
+  {
+    "name": "Perform Loop Sum",
+    "category": "loop",
+    "difficulty": "medium",
+    "description": "Sum integers from 1 to 5 using PERFORM VARYING.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. LOOP-DEMO.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-I   PIC 9(2) VALUE 0.\n       01 WS-SUM PIC 9(3) VALUE 0.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           PERFORM VARYING WS-I FROM 1 BY 1\n               UNTIL WS-I > 5\n               ADD WS-I TO WS-SUM\n           END-PERFORM.\n           DISPLAY 'TOTAL = ' WS-SUM.\n           STOP RUN.",
+    "expected_output": "TOTAL = 015"
+  },
+  {
+    "name": "Factorial Compute",
+    "category": "loop",
+    "difficulty": "hard",
+    "description": "Compute factorial of 5 using a PERFORM loop.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. FACTORIAL.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-N    PIC 9(2) VALUE 5.\n       01 WS-I    PIC 9(2) VALUE 0.\n       01 WS-FACT PIC 9(5) VALUE 1.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           PERFORM VARYING WS-I FROM 1 BY 1\n               UNTIL WS-I > WS-N\n               COMPUTE WS-FACT = WS-FACT * WS-I\n           END-PERFORM.\n           DISPLAY 'FACTORIAL = ' WS-FACT.\n           STOP RUN.",
+    "expected_output": "FACTORIAL = 00120"
+  },
+  {
+    "name": "Nested IF with Compute",
+    "category": "nested",
+    "difficulty": "hard",
+    "description": "Nested conditionals for tax bracket calculation.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. TAX-CALC.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-INCOME PIC 9(7)V99 VALUE 75000.00.\n       01 WS-TAX    PIC 9(7)V99 VALUE 0.\n       01 WS-NET    PIC 9(7)V99 VALUE 0.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           IF WS-INCOME > 100000\n               COMPUTE WS-TAX = WS-INCOME * 0.30\n           ELSE\n               IF WS-INCOME > 50000\n                   COMPUTE WS-TAX = WS-INCOME * 0.20\n               ELSE\n                   COMPUTE WS-TAX = WS-INCOME * 0.10\n               END-IF\n           END-IF.\n           COMPUTE WS-NET = WS-INCOME - WS-TAX.\n           DISPLAY 'TAX = ' WS-TAX.\n           DISPLAY 'NET = ' WS-NET.\n           STOP RUN.",
+    "expected_output": "TAX = 15000.00\nNET = 60000.00"
+  },
+  {
+    "name": "Payroll with PERFORM and 88-level",
+    "category": "nested",
+    "difficulty": "hard",
+    "description": "Multi-paragraph PERFORM with 88-level condition-names — real-world payroll.",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. PAYROLL.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-SALARY PIC 9(7)V99 VALUE 5000.00.\n       01 WS-TAX    PIC 9(7)V99 VALUE 0.\n       01 WS-BONUS  PIC 9(7)V99 VALUE 0.\n       01 WS-NET    PIC 9(7)V99 VALUE 0.\n       01 WS-ACTIVE PIC X VALUE 'Y'.\n          88 IS-ACTIVE   VALUE 'Y'.\n          88 IS-INACTIVE VALUE 'N'.\n       PROCEDURE DIVISION.\n       MAIN-LOGIC.\n           IF IS-ACTIVE\n               PERFORM CALCULATE-TAX\n               PERFORM CALCULATE-BONUS\n               COMPUTE WS-NET = WS-SALARY - WS-TAX + WS-BONUS\n               DISPLAY 'NET PAY: ' WS-NET\n           ELSE\n               DISPLAY 'EMPLOYEE INACTIVE'\n           END-IF.\n           STOP RUN.\n       CALCULATE-TAX.\n           COMPUTE WS-TAX = WS-SALARY * 0.20.\n       CALCULATE-BONUS.\n           IF WS-SALARY > 3000\n               COMPUTE WS-BONUS = WS-SALARY * 0.10\n           ELSE\n               MOVE 0 TO WS-BONUS\n           END-IF.",
+    "expected_output": "NET PAY: 4500.00"
+  },
+  {
+    "name": "Accumulator with Nested Loop",
+    "category": "nested",
+    "difficulty": "hard",
+    "description": "Nested PERFORM loop computing sum of products (i*j for i,j in 1..3).",
+    "input": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. NESTED-LOOP.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01 WS-I     PIC 9(2) VALUE 0.\n       01 WS-J     PIC 9(2) VALUE 0.\n       01 WS-PROD  PIC 9(4) VALUE 0.\n       01 WS-TOTAL PIC 9(5) VALUE 0.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           PERFORM VARYING WS-I FROM 1 BY 1\n               UNTIL WS-I > 3\n               PERFORM VARYING WS-J FROM 1 BY 1\n                   UNTIL WS-J > 3\n                   COMPUTE WS-PROD = WS-I * WS-J\n                   ADD WS-PROD TO WS-TOTAL\n               END-PERFORM\n           END-PERFORM.\n           DISPLAY 'TOTAL = ' WS-TOTAL.\n           STOP RUN.",
+    "expected_output": "TOTAL = 00036"
+  }
+]

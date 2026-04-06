@@ -1,0 +1,236 @@
+{
+  "meta": {
+    "test_file": "/home/bluedragon/Genai_Full/project/evaluation/test_cases.json",
+    "generated_at": "2026-04-05T13:23:59+0530",
+    "total_tests": 8
+  },
+  "summary": {
+    "total_tests": 8,
+    "passed": 7,
+    "failed": 1,
+    "errors": 0,
+    "test_pass_rate": 87.5,
+    "execution_success_rate": 100.0,
+    "avg_debug_iterations": 1.0,
+    "avg_elapsed_seconds": 0.04980428612509513,
+    "avg_confidence_score": 87.5,
+    "total_elapsed_seconds": 0.39843428900076105,
+    "by_difficulty": {
+      "easy": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "pass_rate": 100.0,
+        "avg_iterations": 1.0
+      },
+      "hard": {
+        "total": 2,
+        "passed": 2,
+        "failed": 0,
+        "pass_rate": 100.0,
+        "avg_iterations": 1.0
+      },
+      "medium": {
+        "total": 3,
+        "passed": 2,
+        "failed": 1,
+        "pass_rate": 66.66666666666666,
+        "avg_iterations": 1.0
+      }
+    }
+  },
+  "results": [
+    {
+      "name": "Simple Addition",
+      "difficulty": "easy",
+      "status": "PASS",
+      "execution_success": true,
+      "output_match": true,
+      "expected_output": "SUM = 0400",
+      "actual_output": "",
+      "debug_iterations": 1,
+      "confidence_score": 100.0,
+      "elapsed_seconds": 0.03854785499970603,
+      "pipeline_status": "SUCCESS",
+      "match_score": 1.0,
+      "match_strategy": "pipeline_validator",
+      "error_message": "",
+      "timing_breakdown": {
+        "preprocess": 0.00017408000076102326,
+        "rag_context": 7.748700045340229e-05,
+        "agents": 0.0004883859992332873,
+        "execution": 0.02522319600029732,
+        "validation": 0.012565889999677893,
+        "total": 0.03854093199970521
+      }
+    },
+    {
+      "name": "Display Greeting",
+      "difficulty": "easy",
+      "status": "PASS",
+      "execution_success": true,
+      "output_match": true,
+      "expected_output": "HELLO, WORLD!",
+      "actual_output": "",
+      "debug_iterations": 1,
+      "confidence_score": 100.0,
+      "elapsed_seconds": 0.037924602999737544,
+      "pipeline_status": "SUCCESS",
+      "match_score": 1.0,
+      "match_strategy": "pipeline_validator",
+      "error_message": "",
+      "timing_breakdown": {
+        "preprocess": 5.905199941480532e-05,
+        "rag_context": 6.733800000802148e-05,
+        "agents": 0.00024948400005087024,
+        "execution": 0.025095113000134006,
+        "validation": 0.0124401820003186,
+        "total": 0.037918592000096396
+      }
+    },
+    {
+      "name": "Subtract and Display",
+      "difficulty": "easy",
+      "status": "PASS",
+      "execution_success": true,
+      "output_match": true,
+      "expected_output": "DIFFERENCE = 0650",
+      "actual_output": "",
+      "debug_iterations": 1,
+      "confidence_score": 100.0,
+      "elapsed_seconds": 0.03712444600023446,
+      "pipeline_status": "SUCCESS",
+      "match_score": 1.0,
+      "match_strategy": "pipeline_validator",
+      "error_message": "",
+      "timing_breakdown": {
+        "preprocess": 7.625499983987538e-05,
+        "rag_context": 6.867000047350302e-05,
+        "agents": 0.0002524390001781285,
+        "execution": 0.024366128999645298,
+        "validation": 0.012348268999630818,
+        "total": 0.037118936000297253
+      }
+    },
+    {
+      "name": "If-Else Grade Check",
+      "difficulty": "medium",
+      "status": "PASS",
+      "execution_success": true,
+      "output_match": true,
+      "expected_output": "GRADE: B",
+      "actual_output": "",
+      "debug_iterations": 1,
+      "confidence_score": 100.0,
+      "elapsed_seconds": 0.038342977000866085,
+      "pipeline_status": "SUCCESS",
+      "match_score": 1.0,
+      "match_strategy": "pipeline_validator",
+      "error_message": "",
+      "timing_breakdown": {
+        "preprocess": 5.955300002824515e-05,
+        "rag_context": 6.520399983855896e-05,
+        "agents": 0.0002793499998006155,
+        "execution": 0.024944265999693016,
+        "validation": 0.012981619999663963,
+        "total": 0.03833731600025203
+      }
+    },
+    {
+      "name": "Perform Loop Counter",
+      "difficulty": "medium",
+      "status": "FAIL",
+      "execution_success": true,
+      "output_match": false,
+      "expected_output": "TOTAL = 015",
+      "actual_output": "",
+      "debug_iterations": 1,
+      "confidence_score": 0.0,
+      "elapsed_seconds": 0.118375226000353,
+      "pipeline_status": "PARTIAL",
+      "match_score": 0.0,
+      "match_strategy": "fuzzy_similarity",
+      "error_message": "",
+      "timing_breakdown": {
+        "preprocess": 6.0333999499562196e-05,
+        "rag_context": 6.450199998653261e-05,
+        "agents": 0.0007171100005507469,
+        "execution": 0.09330451999994693,
+        "validation": 0.02421465299994452,
+        "total": 0.11836885400043684
+      }
+    },
+    {
+      "name": "Evaluate Statement",
+      "difficulty": "medium",
+      "status": "PASS",
+      "execution_success": true,
+      "output_match": true,
+      "expected_output": "DAY TYPE: WEEKDAY",
+      "actual_output": "",
+      "debug_iterations": 1,
+      "confidence_score": 100.0,
+      "elapsed_seconds": 0.04374523099977523,
+      "pipeline_status": "SUCCESS",
+      "match_score": 1.0,
+      "match_strategy": "pipeline_validator",
+      "error_message": "",
+      "timing_breakdown": {
+        "preprocess": 0.00016231799963861704,
+        "rag_context": 0.0001201880004373379,
+        "agents": 0.0004293850006433786,
+        "execution": 0.02888447800069116,
+        "validation": 0.014130227999885392,
+        "total": 0.043738749000112875
+      }
+    },
+    {
+      "name": "Nested IF with Compute",
+      "difficulty": "hard",
+      "status": "PASS",
+      "execution_success": true,
+      "output_match": true,
+      "expected_output": "TAX = 15000.00\nNET = 60000.00",
+      "actual_output": "",
+      "debug_iterations": 1,
+      "confidence_score": 100.0,
+      "elapsed_seconds": 0.04119384200021159,
+      "pipeline_status": "SUCCESS",
+      "match_score": 1.0,
+      "match_strategy": "pipeline_validator",
+      "error_message": "",
+      "timing_breakdown": {
+        "preprocess": 6.25789998593973e-05,
+        "rag_context": 7.49119999454706e-05,
+        "agents": 0.00030435799999395385,
+        "execution": 0.027015914999537927,
+        "validation": 0.013721803000407817,
+        "total": 0.04118800099968212
+      }
+    },
+    {
+      "name": "Payroll with PERFORM and 88-level",
+      "difficulty": "hard",
+      "status": "PASS",
+      "execution_success": true,
+      "output_match": true,
+      "expected_output": "NET PAY: 4500.00",
+      "actual_output": "",
+      "debug_iterations": 1,
+      "confidence_score": 100.0,
+      "elapsed_seconds": 0.04318010899987712,
+      "pipeline_status": "SUCCESS",
+      "match_score": 1.0,
+      "match_strategy": "pipeline_validator",
+      "error_message": "",
+      "timing_breakdown": {
+        "preprocess": 6.129600023996318e-05,
+        "rag_context": 7.492199983971659e-05,
+        "agents": 0.0006879550001031021,
+        "execution": 0.027964693999820156,
+        "validation": 0.014374942000358715,
+        "total": 0.043173125999601325
+      }
+    }
+  ]
+}

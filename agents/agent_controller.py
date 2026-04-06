@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from agents.config import Complexity, PipelineConfig
+from config import Complexity, PipelineConfig
 from agents.router import Router, RoutingResult
 from agents.structure_expert import StructureExpert
 from agents.translation_expert import TranslationExpert
