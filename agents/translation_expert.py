@@ -168,6 +168,28 @@ SANDBOX RULES:
   All file opens inside try/except IOError in init().
   Program must exit 0 even when all input files are empty.
 
+INIT PARAGRAPH -- READ priming rule:
+  When init() reads the first record it must BOTH check for EOF
+  AND parse+store the record into the current record variable.
+  Never discard the first line. Pattern:
+    line = _emp_fh.readline()
+    if not line:
+        ws_eof_emp = "Y"
+    else:
+        emp_rec = _parse_emp_line(line)   # always store it
+
+MAIN LOOP -- never re-read a line that init() already read:
+  Declare all record variables at module level with default values.
+  The main loop must NOT call readline() again before processing
+  the record that init() already stored:
+    # correct pattern:
+    while ws_eof_emp != "Y":
+        process_employees()   # process_employees reads the NEXT line internally
+  process_employees() must:
+    1. use the current emp_rec (already stored by init or previous iteration)
+    2. then call read_employee() to prime the NEXT iteration
+  Never put a global declaration inside a while or for loop body.
+
 PRE-EMIT CHECKLIST -- fix any False before outputting:
   [ ] No varying() call
   [ ] No field(idx) function-call syntax on list items
