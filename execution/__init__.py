@@ -1,7 +1,6 @@
-"""Execution layer — sandbox executor, validator, and debug loop."""
+"""Execution layer — sandbox execution and debug loop."""
 
-from execution.executor import SandboxExecutor
-from execution.validator import Validator
-from execution.debug_loop import DebugLoop
+from execution.sandbox import sandbox_execute
+from execution.debug_loop import run_debug_loop
 
-__all__ = ["SandboxExecutor", "Validator", "DebugLoop"]
+__all__ = ["sandbox_execute", "run_debug_loop"]

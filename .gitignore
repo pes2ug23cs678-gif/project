@@ -21,3 +21,7 @@ Thumbs.db
 
 # Gemini
 .gemini/
+
+# Environment / secrets — never commit real API keys
+.env
+*.env

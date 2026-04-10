@@ -1,108 +1,71 @@
-"""Rule-based task complexity classifier and expert routing."""
-
-from __future__ import annotations
+"""Router — Expert 2. Uses SmolLM via Ollama to classify task complexity."""
 
 import re
-from dataclasses import dataclass, field
-from typing import Any
-
-from config import Complexity, RouterConfig
+import requests
+from config import SMOLLM_BASE_URL, SMOLLM_MODEL
 
 
-@dataclass
-class RoutingResult:
-    """Structured output returned by the Router."""
+ROUTER_PROMPT = """You are a COBOL complexity classifier.
+Read the COBOL program and reply with exactly one word: simple or complex.
 
-    complexity: Complexity
-    score: float
-    dimensions: dict[str, Any] = field(default_factory=dict)
-    recommended_flow: list[str] = field(default_factory=list)
+simple  = no nested PERFORMs, no file I/O, no OCCURS, under 40 lines
+complex = has any of: nested PERFORMs, file I/O, OCCURS tables, REDEFINES, GO TO, over 40 lines
+
+Reply with only the single word. No punctuation. No explanation."""
 
 
-class Router:
-    """Classifies COBOL source complexity and selects the expert pipeline.
-
-    Parameters
-    ----------
-    config : RouterConfig, optional
-        Tunable weights and threshold.  Defaults to standard values.
+def classify(cobol_code: str, structured_analysis: dict = None) -> str:
     """
-
-    _SIMPLE_FLOW = ["translation_expert", "test_expert"]
-    _COMPLEX_FLOW = ["structure_expert", "translation_expert", "test_expert"]
-
-    def __init__(self, config: RouterConfig | None = None) -> None:
-        self.config = config or RouterConfig()
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
-    def classify(self, task_input: dict[str, Any]) -> RoutingResult:
-        """Analyse *task_input* and return a :class:`RoutingResult`.
-
-        Parameters
-        ----------
-        task_input : dict
-            Must contain ``"cobol_source"`` (str).
-
-        Raises
-        ------
-        ValueError
-            If ``cobol_source`` is missing or empty.
-        """
-        source: str = task_input.get("cobol_source", "")
-        if not source.strip():
-            raise ValueError("task_input must contain a non-empty 'cobol_source'")
-
-        dimensions = self._score_dimensions(source)
-        score = self._composite_score(dimensions)
-        complexity = (
-            Complexity.COMPLEX
-            if score >= self.config.complexity_threshold
-            else Complexity.SIMPLE
-        )
-        flow = (
-            list(self._COMPLEX_FLOW)
-            if complexity is Complexity.COMPLEX
-            else list(self._SIMPLE_FLOW)
-        )
-
-        return RoutingResult(
-            complexity=complexity,
-            score=round(score, 2),
-            dimensions=dimensions,
-            recommended_flow=flow,
-        )
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _score_dimensions(source: str) -> dict[str, Any]:
-        upper = source.upper()
-        lines = [ln for ln in upper.splitlines() if ln.strip()]
-
-        division_re = re.compile(
-            r"\b(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION",
-        )
-        divisions_found = sorted({m.group(1) for m in division_re.finditer(upper)})
-
-        return {
-            "divisions": divisions_found,
-            "division_count": len(divisions_found),
-            "perform_count": len(re.findall(r"\bPERFORM\b", upper)),
-            "copy_count": len(re.findall(r"\bCOPY\b", upper)),
-            "call_count": len(re.findall(r"\bCALL\b", upper)),
-            "line_count": len(lines),
+    Returns "simple" or "complex".
+    Falls back to rule-based if SmolLM is unavailable.
+    """
+    # Try SmolLM via Ollama first
+    try:
+        payload = {
+            "model":  SMOLLM_MODEL,
+            "prompt": f"{ROUTER_PROMPT}\n\nCOBOL:\n{cobol_code[:1500]}",
+            "stream": False,
+            "options": {"num_predict": 5, "temperature": 0}
         }
-
-    def _composite_score(self, dims: dict[str, Any]) -> float:
-        cfg = self.config
-        return (
-            dims["division_count"] * cfg.division_weight
-            + dims["perform_count"] * cfg.perform_weight
-            + (dims["copy_count"] + dims["call_count"]) * cfg.external_weight
-            + dims["line_count"] * cfg.line_count_weight
+        resp = requests.post(
+            f"{SMOLLM_BASE_URL}/api/generate",
+            json=payload,
+            timeout=10
         )
+        if resp.status_code == 200:
+            answer = resp.json().get("response", "").strip().lower()
+            if "simple" in answer:
+                return "simple"
+            if "complex" in answer:
+                return "complex"
+    except Exception:
+        pass  # Fall through to rule-based
+
+    # Rule-based fallback — always available, no model needed
+    return _rule_based(cobol_code, structured_analysis)
+
+
+def _rule_based(cobol_code: str, analysis: dict = None) -> str:
+    """Deterministic fallback classifier."""
+    if analysis:
+        complexity = analysis.get("complexity", "").lower()
+        if complexity in ("simple", "complex"):
+            return complexity
+
+    code_upper = cobol_code.upper()
+    lines      = [l for l in cobol_code.splitlines() if l.strip()]
+
+    complex_signals = [
+        len(lines) > 40,
+        "OCCURS"     in code_upper,
+        "REDEFINES"  in code_upper,
+        "GO TO"      in code_upper,
+        "FILE-CONTROL" in code_upper,
+        "SELECT"     in code_upper,
+        "FD "        in code_upper,
+        code_upper.count("PERFORM") > 3,
+        "COMP-3"     in code_upper,
+        "EVALUATE"   in code_upper,
+    ]
+
+    return "complex" if any(complex_signals) else "simple"

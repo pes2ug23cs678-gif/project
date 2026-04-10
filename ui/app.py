@@ -154,8 +154,9 @@ if st.button("🚀 Run Pipeline", type="primary", disabled=not can_run):
         result = run_pipeline(cobol_source)
         wall = time.perf_counter() - t0
 
-    st.session_state["result"] = result
-    st.session_state["wall"] = wall
+    st.session_state["result"]      = result
+    st.session_state["last_result"] = result   # Agents tab reads this
+    st.session_state["wall"]        = wall
 
 
 # ======================================================================
@@ -185,7 +186,7 @@ st.markdown("")
 # ── Metrics row ───────────────────────────────────────────────────────
 
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Confidence", f"{res.get('confidence_score', 0):.0f}%")
+c1.metric("Confidence", f"{res.get('confidence_score', 0):.1f}%")
 c2.metric("Complexity", res.get("complexity", "N/A"))
 c3.metric("Iterations", res.get("iterations", 0))
 c4.metric("Debug Loop", "Pass ✓" if res.get("debug_passed") else "Fail ✗")
@@ -222,26 +223,35 @@ with tab_logs:
 # ── Timing tab ────────────────────────────────────────────────────────
 
 with tab_timing:
-    if timing:
-        total = timing.get("total", 1) or 1
-        stages = [
-            ("🔍 Preprocess",  "preprocess"),
-            ("📚 RAG Context", "rag_context"),
-            ("🤖 Agents",      "agents"),
-            ("🐛 Execution",   "execution"),
-            ("✅ Validation",  "validation"),
-        ]
-        for label, key in stages:
-            secs = timing.get(key, 0)
-            pct = secs / total
-            col_l, col_bar, col_t = st.columns([1.2, 4, 0.8])
-            col_l.markdown(f"**{label}**")
-            col_bar.progress(min(pct, 1.0))
-            col_t.code(f"{secs:.3f}s")
+    result = st.session_state.get("last_result", {})
+    timing = result.get("timing", {})
 
-        st.markdown(f"**Total: {total:.3f}s**")
+    if not timing:
+        st.info("No timing data yet.")
     else:
-        st.info("No timing data.")
+        stage_config = {
+            "preprocess":  ("🔍", "Preprocess"),
+            "structure":   ("🧱", "Structure Analysis"),
+            "rag":         ("📚", "RAG Context"),
+            "router":      ("🧭", "Router (SmolLM)"),
+            "translation": ("⚙️",  "Translation (Groq)"),
+            "execution":   ("🐛", "Sandbox + Debug Loop"),
+            "validation":  ("✅", "Validation"),
+        }
+        total = timing.get("total", 0) or 1  # guard against zero-div
+
+        for key, (icon, label) in stage_config.items():
+            val = timing.get(key, 0)
+            pct = val / total if total > 0 else 0
+            col1, col2, col3 = st.columns([2, 6, 1])
+            with col1:
+                st.markdown(f"{icon} **{label}**")
+            with col2:
+                st.progress(min(pct, 1.0))
+            with col3:
+                st.markdown(f"`{val}s`")
+
+        st.markdown(f"**Total: {timing.get('total', 0)}s**")
 
 
 # ── Validation tab ────────────────────────────────────────────────────
@@ -270,71 +280,86 @@ with tab_valid:
 # ── Agents tab ────────────────────────────────────────────────────────
 
 with tab_agents:
-    agent_out = result.get("agent_output", {})
-    if not agent_out:
+    result = st.session_state.get("last_result", {})
+    agents = result.get("agents", {})
+
+    if not agents:
         st.info("No agent data. Run the pipeline first.")
-        st.stop()
+    else:
+        agent_order = [
+            "expert_1_structure",
+            "expert_2_router",
+            "expert_3_translation",
+            "expert_4_debug",
+            "expert_5_validation",
+        ]
+        icons = {
+            "expert_1_structure":   "🔍",
+            "expert_2_router":      "🧭",
+            "expert_3_translation": "⚙️",
+            "expert_4_debug":       "🐛",
+            "expert_5_validation":  "✅",
+        }
+        for key in agent_order:
+            data = agents.get(key, {})
+            if not data:
+                continue
+            status      = data.get("status", "unknown")
+            status_icon = "✅" if status == "success" else "❌"
+            icon        = icons.get(key, "🤖")
 
-    # Routing
-    routing = agent_out.get("routing", {})
-    if routing:
-        st.subheader("🔀 Routing")
-        rc1, rc2, rc3 = st.columns(3)
-        rc1.metric("Complexity", routing.get("complexity", "—"))
-        rc2.metric("Score", routing.get("score", 0))
-        rc3.metric("Flow", " → ".join(routing.get("recommended_flow", [])) or "—")
+            with st.expander(
+                f"{icon} {data.get('name', key)}  —  {status_icon} {status.upper()}",
+                expanded=(key == "expert_4_debug")
+            ):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**Model:** `{data.get('model', 'N/A')}`")
+                with col2:
+                    st.markdown(f"**Status:** `{status}`")
 
-        with st.expander("Scoring dimensions"):
-            st.json(routing.get("dimensions", {}))
+                if key == "expert_1_structure":
+                    st.markdown(f"**Program:** `{data.get('program_id')}`")
+                    st.markdown(f"**Complexity:** `{data.get('complexity')}`")
+                    st.markdown(f"**File I/O:** `{data.get('file_io')}`")
+                    paras = data.get("paragraphs", [])
+                    if paras:
+                        st.markdown(
+                            f"**Paragraphs ({len(paras)}):** "
+                            + ", ".join(paras if isinstance(paras, list) else list(paras))
+                        )
 
-    # Structure
-    structure = agent_out.get("structure", {})
-    if structure:
-        st.subheader("🏗 Structure")
-        sc1, sc2 = st.columns(2)
-        sc1.markdown(f"**Program ID:** `{structure.get('program_id', '—')}`")
-        divs = structure.get("divisions", [])
-        sc1.markdown(f"**Divisions:** {', '.join(divs) or '—'}")
-        paras = structure.get("paragraphs", [])
-        sc2.markdown(f"**Paragraphs:** {', '.join(paras) or '—'}")
-        sc2.markdown(f"**Data Items:** {len(structure.get('data_items', []))}")
+                elif key == "expert_2_router":
+                    st.markdown(f"**Decision:** `{data.get('decision')}`")
+                    st.markdown(f"**Reason:** {data.get('reason')}")
 
-        if structure.get("flow_summary"):
-            with st.expander("Flow summary"):
-                st.code(structure["flow_summary"], language="text")
+                elif key == "expert_3_translation":
+                    st.markdown(
+                        f"**Output size:** "
+                        f"`{data.get('chars')} chars / "
+                        f"{data.get('lines')} lines`"
+                    )
 
-    # Mapping table
-    translation = agent_out.get("translation", {})
-    mapping = translation.get("mapping_table", [])
-    if mapping:
-        st.subheader("🗺 Construct Mapping")
-        import pandas as pd
-        st.dataframe(pd.DataFrame(mapping), width="stretch", hide_index=True)
+                elif key == "expert_4_debug":
+                    st.markdown(f"**Iterations used:** `{data.get('iterations')}`")
+                    debug_log = data.get("log", [])
+                    if debug_log:
+                        st.markdown("**Iteration log:**")
+                        for entry in debug_log:
+                            log_icon = "✅" if entry["status"] in ("pass", "fixed") else "❌"
+                            st.markdown(
+                                f"- {log_icon} **Iter {entry['iteration']}** | "
+                                f"Error: `{entry['error_type']}` | "
+                                f"Fix: {entry['fix_applied']}"
+                            )
 
-    # Test cases
-    tests = agent_out.get("tests", {})
-    cases = tests.get("test_cases", [])
-    if cases:
-        st.subheader(f"🧪 Test Cases ({len(cases)})")
-        for tc in cases:
-            icon = {"happy_path": "😊", "boundary": "📏", "error": "💥",
-                    "type_check": "🔠"}.get(tc.get("category", ""), "•")
-            with st.expander(f"{icon} {tc['name']}"):
-                st.markdown(f"**Target:** `{tc.get('target_function', '')}()`")
-                st.markdown(tc.get("description", ""))
+                elif key == "expert_5_validation":
+                    passed = data.get("passed", 0)
+                    total  = data.get("total", 0)
+                    rate   = data.get("pass_rate", 0.0)
+                    st.markdown(f"**Tests passed:** `{passed}/{total}`")
+                    st.progress(float(rate))
 
-    # Debug history
-    debug_hist = agent_out.get("debug_history", [])
-    if debug_hist:
-        st.subheader(f"🐛 Debug History ({len(debug_hist)})")
-        for e in debug_hist:
-            st.markdown(
-                f"**Iter {e.get('iteration', '?')}:** "
-                f"`{e.get('error_type', '—')}` (sev {e.get('severity', '?')}/5) "
-                f"— {e.get('error_summary', e.get('remaining_error', ''))}"
-            )
-
-    # Raw JSON
-    if show_agent_json:
-        st.subheader("🔎 Raw JSON")
-        st.json(agent_out)
+        if show_agent_json:
+            st.subheader("🔎 Raw Agent JSON")
+            st.json(agents)
