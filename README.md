@@ -24,23 +24,22 @@ An AI-powered, multi-agent system that automatically migrates legacy COBOL progr
 
 ## Overview
 
-This project implements an end-to-end **COBOL-to-Python code migration pipeline** with a built-in validation layer. It uses a multi-agent architecture where specialized AI agents handle different aspects of the translation:
+This project implements an end-to-end **COBOL-to-Python code migration pipeline** with a built-in validation layer. It uses a modern hybrid LLM stack combined with a deterministic execution sandbox:
 
-- **Router Agent** — classifies task complexity and determines the optimal processing flow
-- **Structure Expert** — parses COBOL divisions, sections, and data items
-- **Translation Expert** — converts COBOL constructs to idiomatic Python
-- **Test Expert** — generates test cases for the translated code
-- **Debug Expert** — iteratively fixes errors via a self-debugging loop
+- **Router Agent** — SmolLM (135m via Ollama) routes tasks via complexity analysis or rule-based fallbacks.
+- **Translation Expert** — Groq (llama-3.3-70b-versatile) translates COBOL constructs to idiomatic Python, guided by rigid field-width calculation and structural rules.
+- **Debug Expert** — Groq operates alongside a deterministic, deterministic quick-fixer to automatically patch syntax and runtime errors iteratively.
+- **Execution Sandbox** — A pure subprocess sandbox (no LLM, auto-stubs missing data files) safely evaluates generated code.
 
-The system is augmented with **Retrieval-Augmented Generation (RAG)** for context-aware translation and includes a **research-grade evaluation framework** for comparative analysis.
+The system is augmented with **Retrieval-Augmented Generation (RAG)** for context-aware translation and features a **confidence-scoring engine** and a **research-grade evaluation framework** for comparative analysis.
 
 ---
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                    COBOL Source Code Input                       │
+│                    COBOL Source Code Input                      │
 └──────────────────────────┬──────────────────────────────────────┘
                            ▼
                ┌───────────────────────┐
@@ -48,24 +47,31 @@ The system is augmented with **Retrieval-Augmented Generation (RAG)** for contex
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │   2. RAG Context      │  Retrieve relevant knowledge
+               │ 2. Structure Analysis │  Extract paragraphs & IO context
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │   3. Agent Pipeline   │  Route → Structure → Translate → Test
+               │   3. RAG Context      │  Retrieve relevant knowledge
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │   4. Execution &      │  Sandbox run + self-debugging loop
-               │      Debug Loop       │
+               │ 4. Route (SmolLM/Rule)│  Determine complexity
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │   5. Validation       │  Output correctness & confidence
+               │ 5. Translate (Groq)   │  COBOL → Idiomatic Python
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │   Generated Python    │  Final validated output
+               │ 6. Sandbox + Debug    │  Rule-based + Groq iteration
+               └───────────┬───────────┘
+                           ▼
+               ┌───────────────────────┐
+               │   7. Validation       │  Calculate Confidence Score
+               └───────────┬───────────┘
+                           ▼
+               ┌───────────────────────┐
+               │   Generated Python    │  Final output & Agents UI payload
                └───────────────────────┘
 ```
 
@@ -75,25 +81,25 @@ The system is augmented with **Retrieval-Augmented Generation (RAG)** for contex
 
 ```
 project/
-├── main.py                     # Pipeline entry point (CLI + API)
-├── config.py                   # Centralized config, enums, constants
+├── main.py                     # 7-step Pipeline entry point (CLI + API)
+├── config.py                   # Centralized model & routing config
 ├── requirements.txt            # Python dependencies
+├── abstract_introduction.md    # IEEE research paper drafting
 │
 ├── agents/                     # Multi-agent system
 │   ├── __init__.py
 │   ├── agent_controller.py     # Orchestrates all agents
-│   ├── base.py                 # Abstract base class for experts
-│   ├── router.py               # Complexity classification & routing
-│   ├── structure_expert.py     # COBOL structure analysis
-│   ├── translation_expert.py   # COBOL → Python translation
+│   ├── router.py               # SmolLM routing & rule-based fallback
+│   ├── structure_expert.py     # Legacy COBOL structure analysis
+│   ├── translation_expert.py   # Groq COBOL → Python translation
 │   ├── test_expert.py          # Test case generation
-│   ├── debug_expert.py         # Self-debugging agent
+│   ├── debug_expert.py         # Groq code repair
 │   ├── prompts.py              # Prompt templates
 │   └── examples.py             # Few-shot examples
 │
 ├── preprocessing/              # Input normalization
 │   ├── __init__.py
-│   └── preprocessor.py         # Chunking & knowledge base utils
+│   └── preprocessor.py         # Chunking & base utils
 │
 ├── rag/                        # Retrieval-Augmented Generation
 │   ├── __init__.py
@@ -101,10 +107,10 @@ project/
 │
 ├── execution/                  # Code execution & validation
 │   ├── __init__.py
-│   ├── executor.py             # Sandboxed Python execution
-│   ├── validator.py            # Output validation & confidence
-│   ├── debug_loop.py           # Iterative self-debugging
-│   └── test_execution.py       # Execution tests
+│   ├── sandbox.py              # Secure subprocess sandbox (auto-stubs IO)
+│   ├── debug_loop.py           # Per-iteration timed debug loop
+│   ├── executor.py             # Legacy execution
+│   └── validator.py            # Legacy validation
 │
 ├── evaluation/                 # Research evaluation framework
 │   ├── __init__.py
@@ -265,17 +271,15 @@ print(result["result"]["confidence_score"])  # 0-100
 
 ## Pipeline Stages
 
-| Stage | Module | Description |
+| Stage | Component | Description |
 |-------|--------|-------------|
-| **Preprocessing** | `preprocessing/preprocessor.py` | Normalizes COBOL source, chunks by procedure/paragraph |
-| **RAG Context** | `rag/rag_engine.py` | Retrieves relevant context from the knowledge base |
-| **Routing** | `agents/router.py` | Classifies complexity (simple/complex), determines agent flow |
-| **Structure Analysis** | `agents/structure_expert.py` | Parses COBOL divisions, data items, paragraphs |
-| **Translation** | `agents/translation_expert.py` | Converts COBOL → Python with construct mapping |
-| **Test Generation** | `agents/test_expert.py` | Generates test cases (happy path, boundary, error) |
-| **Execution** | `execution/executor.py` | Runs generated Python in a sandboxed subprocess |
-| **Debug Loop** | `execution/debug_loop.py` | Iteratively fixes errors (up to N retries) |
-| **Validation** | `execution/validator.py` | Verifies output correctness, assigns confidence score |
+| **1. Preprocessing** | `preprocessing/preprocessor.py` | Normalizes COBOL source, chunks by procedure/paragraph |
+| **2. Structured Analysis**| `main.py` | Extracts paragraphs and determines file I/O requirements |
+| **3. RAG Context** | `main.py` / `rag` | Retrieves relevant domain/file knowledge from the knowledge base |
+| **4. Routing** | `agents/router.py` | Classifies complexity using SmolLM via Ollama (or rule-based fallback) |
+| **5. Translation** | `agents/translation_expert.py` | Main AST to Idiomatic Python translation via Groq (`llama-3.3-70b-versatile`) |
+| **6. Execution + Debug**| `execution/debug_loop.py` & `sandbox.py` | Sandbox evaluation with quick iterative rule-based and LLM-assisted patching |
+| **7. Validation** | `main.py` | Verifies success and assigns a holistic confidence score percentage |
 
 ---
 
