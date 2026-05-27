@@ -27,6 +27,7 @@ An AI-powered, multi-agent system that automatically migrates legacy COBOL progr
 This project implements an end-to-end **COBOL-to-Python code migration pipeline** with a built-in validation layer. It uses a modern hybrid LLM stack combined with a deterministic execution sandbox:
 
 - **Router Agent** — SmolLM (135m via Ollama) routes tasks via complexity analysis or rule-based fallbacks.
+- **Semantic RAG Engine** — ChromaDB vector store + local Sentence-Transformers (`all-MiniLM-L6-v2`) retrieval with ExpertRAG gating and OPEN-RAG distractor filtering.
 - **Translation Expert** — Groq (llama-3.3-70b-versatile) translates COBOL constructs to idiomatic Python, guided by rigid field-width calculation and structural rules.
 - **Debug Expert** — Groq operates alongside a deterministic, deterministic quick-fixer to automatically patch syntax and runtime errors iteratively.
 - **Execution Sandbox** — A pure subprocess sandbox (no LLM, auto-stubs missing data files) safely evaluates generated code.
@@ -51,11 +52,11 @@ The system is augmented with **Retrieval-Augmented Generation (RAG)** for contex
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │   3. RAG Context      │  Retrieve relevant knowledge
+               │ 3. Route (SmolLM/Rule)│  Determine complexity
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │ 4. Route (SmolLM/Rule)│  Determine complexity
+               │   4. Semantic RAG     │  Vector search + Gating & Filtering
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
@@ -74,6 +75,7 @@ The system is augmented with **Retrieval-Augmented Generation (RAG)** for contex
                │   Generated Python    │  Final output & Agents UI payload
                └───────────────────────┘
 ```
+
 
 ---
 
@@ -235,13 +237,14 @@ python -m evaluation.evaluator --plots --ablation --quiet
 
 ### 4. RAG Knowledge Base Ingestion
 
-Ingest COBOL source files into the knowledge base for RAG-augmented translation:
+Ingest COBOL source files and pattern templates into the ChromaDB vector store:
 
 ```bash
-python -m rag.rag_engine
+# Populate ChromaDB with embeddings
+python -c "from rag.vector_store import ingest_knowledge_base; print(ingest_knowledge_base())"
 ```
 
-Place your COBOL files in the `data/` directory and update the file paths in `rag/rag_engine.py`.
+Place pattern files starting with `cobol_` or reference COBOL programs in `data/knowledge_base/` before running the ingestion command.
 
 ---
 
@@ -275,11 +278,12 @@ print(result["result"]["confidence_score"])  # 0-100
 |-------|--------|-------------|
 | **1. Preprocessing** | `preprocessing/preprocessor.py` | Normalizes COBOL source, chunks by procedure/paragraph |
 | **2. Structured Analysis**| `main.py` | Extracts paragraphs and determines file I/O requirements |
-| **3. RAG Context** | `main.py` / `rag` | Retrieves relevant domain/file knowledge from the knowledge base |
-| **4. Routing** | `agents/router.py` | Classifies complexity using SmolLM via Ollama (or rule-based fallback) |
+| **3. Routing** | `agents/router.py` | Classifies complexity using SmolLM via Ollama (or rule-based fallback) |
+| **4. Semantic RAG** | `rag/vector_store.py` | Performs vector search, applies ExpertRAG gating and OPEN-RAG distractor filtering |
 | **5. Translation** | `agents/translation_expert.py` | Main AST to Idiomatic Python translation via Groq (`llama-3.3-70b-versatile`) |
 | **6. Execution + Debug**| `execution/debug_loop.py` & `sandbox.py` | Sandbox evaluation with quick iterative rule-based and LLM-assisted patching |
 | **7. Validation** | `main.py` | Verifies success and assigns a holistic confidence score percentage |
+
 
 ---
 
