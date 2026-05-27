@@ -86,7 +86,6 @@ project/
 ├── main.py                     # 7-step Pipeline entry point (CLI + API)
 ├── config.py                   # Centralized model & routing config
 ├── requirements.txt            # Python dependencies
-├── abstract_introduction.md    # IEEE research paper drafting
 │
 ├── agents/                     # Multi-agent system
 │   ├── __init__.py
