@@ -1,0 +1,44 @@
+[SOURCE: cobol_evaluate_pattern — COBOL EVALUATE / conditions → Python]
+
+EVALUATE with subject:
+  COBOL:  EVALUATE TRANS-TYPE
+              WHEN 'D'
+                  ADD TRANS-AMOUNT TO ACC-BALANCE
+              WHEN 'W'
+                  SUBTRACT TRANS-AMOUNT FROM ACC-BALANCE
+              WHEN OTHER
+                  ADD 1 TO WS-TOT-ERRORS
+          END-EVALUATE.
+
+  Python: if trans_type == "D":
+              acc_balance += trans_amount
+          elif trans_type == "W":
+              acc_balance -= trans_amount
+          else:
+              ws_tot_errors += 1
+
+  WRONG:  if "D":   ← bare string is always True — NEVER do this
+  WRONG:  if trans_type = "D":  ← single = is assignment — NEVER in conditions
+
+PERFORM UNTIL → while:
+  COBOL:  PERFORM PROCESS-ACCOUNTS UNTIL WS-EOF-ACC = 'Y'.
+  Python: while ws_eof_acc != "Y":
+              process_accounts()
+
+FIGURATIVE CONSTANTS:
+  ZERO / ZEROS / ZEROES → 0  (or Decimal("0") for COMP-3 fields)
+  SPACES / SPACE        → "" (comparison: var.strip() == "")
+
+  COBOL:  IF ACC-NAME = SPACES  → if acc_name.strip() == "":
+  COBOL:  MOVE ZEROS TO TOTAL   → total = Decimal("0")   or   total = 0
+
+GLOBAL STATE — every mutating function must declare globals:
+  def update_balance() -> None:
+      global acc_balance, ws_tot_deposit, ws_tot_withdraw, ws_tot_errors
+      ...
+  Omitting `global` causes Python to silently create a local variable — the
+  module-level value will NOT be updated.
+
+STOP RUN:
+  NEVER call sys.exit() inside paragraph functions.
+  Only allowed in:  if __name__ == "__main__":

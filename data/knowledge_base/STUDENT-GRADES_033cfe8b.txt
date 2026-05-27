@@ -1,0 +1,163 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. STUDENT-GRADES.
+       AUTHOR. SYSTEM.
+       DATE-WRITTEN. 2024-01-01.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT STUDENT-FILE ASSIGN TO 'students.dat'
+               ORGANIZATION IS SEQUENTIAL.
+           SELECT MARKS-FILE   ASSIGN TO 'marks.dat'
+               ORGANIZATION IS SEQUENTIAL.
+           SELECT RESULT-FILE  ASSIGN TO 'results.dat'
+               ORGANIZATION IS SEQUENTIAL.
+           SELECT REPORT-FILE  ASSIGN TO 'grade_report.txt'
+               ORGANIZATION IS SEQUENTIAL.
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD STUDENT-FILE.
+       01 STUDENT-RECORD.
+          05 STU-ID          PIC X(10).
+          05 STU-NAME        PIC X(40).
+          05 STU-COURSE      PIC X(20).
+          05 STU-SEMESTER    PIC 9(2).
+          05 STU-STATUS      PIC X(1).
+
+       FD MARKS-FILE.
+       01 MARKS-RECORD.
+          05 MRK-STU-ID      PIC X(10).
+          05 MRK-SUBJECT     PIC X(20).
+          05 MRK-OBTAINED    PIC 9(3).
+          05 MRK-MAXIMUM     PIC 9(3).
+
+       FD RESULT-FILE.
+       01 RESULT-RECORD.
+          05 RES-STU-ID      PIC X(10).
+          05 RES-TOTAL-MARKS PIC 9(5).
+          05 RES-PERCENTAGE  PIC 9(3)V99.
+          05 RES-GRADE       PIC X(2).
+          05 RES-STATUS      PIC X(4).
+
+       FD REPORT-FILE.
+       01 REPORT-LINE        PIC X(132).
+
+       WORKING-STORAGE SECTION.
+       01 WS-EOF-STUDENT     PIC X VALUE 'N'.
+       01 WS-EOF-MARKS       PIC X VALUE 'N'.
+       01 WS-TOTAL-MARKS     PIC 9(5) VALUE ZERO.
+       01 WS-MAX-MARKS       PIC 9(5) VALUE ZERO.
+       01 WS-PERCENTAGE      PIC 9(3)V99.
+       01 WS-GRADE           PIC X(2).
+       01 WS-PASS            PIC X(4).
+       01 WS-SUBJECT-COUNT   PIC 9(3) VALUE ZERO.
+       01 WS-TOPPER-NAME     PIC X(40).
+       01 WS-TOPPER-PCT      PIC 9(3)V99 VALUE ZERO.
+       01 WS-CLASS-TOTAL-PCT PIC 9(6)V99 VALUE ZERO.
+       01 WS-STUDENT-COUNT   PIC 9(5) VALUE ZERO.
+       01 WS-REPORT-LINE     PIC X(132).
+
+       PROCEDURE DIVISION.
+       MAIN-LOGIC.
+           PERFORM OPEN-FILES.
+           PERFORM READ-STUDENT.
+           PERFORM PROCESS-ALL-STUDENTS UNTIL WS-EOF-STUDENT = 'Y'.
+           PERFORM PRINT-CLASS-SUMMARY.
+           PERFORM CLOSE-FILES.
+           STOP RUN.
+
+       OPEN-FILES.
+           OPEN INPUT  STUDENT-FILE MARKS-FILE.
+           OPEN OUTPUT RESULT-FILE REPORT-FILE.
+
+       READ-STUDENT.
+           READ STUDENT-FILE
+               AT END MOVE 'Y' TO WS-EOF-STUDENT.
+
+       PROCESS-ALL-STUDENTS.
+           MOVE ZERO TO WS-TOTAL-MARKS WS-MAX-MARKS WS-SUBJECT-COUNT.
+           PERFORM ACCUMULATE-MARKS.
+           PERFORM COMPUTE-RESULT.
+           PERFORM WRITE-RESULT.
+           PERFORM PRINT-STUDENT-REPORT.
+           ADD 1 TO WS-STUDENT-COUNT.
+           ADD WS-PERCENTAGE TO WS-CLASS-TOTAL-PCT.
+           PERFORM UPDATE-TOPPER.
+           PERFORM READ-STUDENT.
+
+       ACCUMULATE-MARKS.
+           MOVE 'N' TO WS-EOF-MARKS.
+           PERFORM READ-MARKS.
+           PERFORM UNTIL WS-EOF-MARKS = 'Y'
+               IF MRK-STU-ID = STU-ID
+                   ADD MRK-OBTAINED TO WS-TOTAL-MARKS
+                   ADD MRK-MAXIMUM  TO WS-MAX-MARKS
+                   ADD 1 TO WS-SUBJECT-COUNT
+               END-IF
+               PERFORM READ-MARKS
+           END-PERFORM.
+
+       READ-MARKS.
+           READ MARKS-FILE
+               AT END MOVE 'Y' TO WS-EOF-MARKS.
+
+       COMPUTE-RESULT.
+           IF WS-MAX-MARKS > ZERO
+               COMPUTE WS-PERCENTAGE =
+                   (WS-TOTAL-MARKS / WS-MAX-MARKS) * 100
+           ELSE
+               MOVE ZERO TO WS-PERCENTAGE
+           END-IF.
+           PERFORM ASSIGN-GRADE.
+           IF WS-PERCENTAGE >= 40
+               MOVE 'PASS' TO WS-PASS
+           ELSE
+               MOVE 'FAIL' TO WS-PASS
+           END-IF.
+
+       ASSIGN-GRADE.
+           EVALUATE TRUE
+               WHEN WS-PERCENTAGE >= 90
+                   MOVE 'A+' TO WS-GRADE
+               WHEN WS-PERCENTAGE >= 80
+                   MOVE 'A ' TO WS-GRADE
+               WHEN WS-PERCENTAGE >= 70
+                   MOVE 'B ' TO WS-GRADE
+               WHEN WS-PERCENTAGE >= 60
+                   MOVE 'C ' TO WS-GRADE
+               WHEN WS-PERCENTAGE >= 50
+                   MOVE 'D ' TO WS-GRADE
+               WHEN OTHER
+                   MOVE 'F ' TO WS-GRADE
+           END-EVALUATE.
+
+       WRITE-RESULT.
+           MOVE STU-ID         TO RES-STU-ID.
+           MOVE WS-TOTAL-MARKS TO RES-TOTAL-MARKS.
+           MOVE WS-PERCENTAGE  TO RES-PERCENTAGE.
+           MOVE WS-GRADE       TO RES-GRADE.
+           MOVE WS-PASS        TO RES-STATUS.
+           WRITE RESULT-RECORD.
+
+       PRINT-STUDENT-REPORT.
+           STRING STU-ID ' ' STU-NAME ' PCT:' WS-PERCENTAGE
+                  ' GRADE:' WS-GRADE ' ' WS-PASS
+               DELIMITED SIZE INTO WS-REPORT-LINE.
+           MOVE WS-REPORT-LINE TO REPORT-LINE.
+           WRITE REPORT-LINE.
+
+       UPDATE-TOPPER.
+           IF WS-PERCENTAGE > WS-TOPPER-PCT
+               MOVE WS-PERCENTAGE TO WS-TOPPER-PCT
+               MOVE STU-NAME      TO WS-TOPPER-NAME
+           END-IF.
+
+       PRINT-CLASS-SUMMARY.
+           STRING 'TOPPER: ' WS-TOPPER-NAME ' (' WS-TOPPER-PCT '%)'
+               DELIMITED SIZE INTO WS-REPORT-LINE.
+           MOVE WS-REPORT-LINE TO REPORT-LINE.
+           WRITE REPORT-LINE.
+
+       CLOSE-FILES.
+           CLOSE STUDENT-FILE MARKS-FILE RESULT-FILE REPORT-FILE.

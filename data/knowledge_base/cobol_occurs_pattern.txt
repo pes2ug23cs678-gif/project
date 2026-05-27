@@ -1,0 +1,28 @@
+[SOURCE: cobol_occurs_pattern — COBOL OCCURS table → Python list-of-dicts]
+
+COBOL SOURCE PATTERN:
+  05 TABLE OCCURS 50 TIMES.
+      10 T-ID   PIC 9(6).
+      10 T-TYPE PIC X(1).
+      10 T-AMT  PIC S9(7)V99 COMP-3.
+
+CORRECT PYTHON TRANSLATION:
+  table = [{"t_id": 0, "t_type": "", "t_amt": Decimal("0")} for _ in range(50)]
+
+ACCESS PATTERN (COBOL 1-based index → Python 0-based slot):
+  COBOL:  MOVE X TO T-AMT(IDX)
+  Python: slot = cobol_idx - 1
+          table[slot]["t_amt"] = x
+
+  COBOL:  ADD T-AMT(IDX) TO TOTAL
+  Python: total += table[slot]["t_amt"]
+
+WRONG (crashes with TypeError — t_amt is not callable):
+  table[slot]["t_amt"](idx)   ← NEVER write this
+  t_amt(idx)                  ← NEVER write this
+
+PERFORM VARYING loop pattern:
+  COBOL:  PERFORM VARYING IDX FROM 1 BY 1 UNTIL IDX > 50
+  Python: for cobol_idx in range(1, 51):
+              slot = cobol_idx - 1
+              # use table[slot]["field"] here

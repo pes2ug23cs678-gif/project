@@ -195,8 +195,8 @@ c5.metric("Total Time", f"{timing.get('total', wall):.2f}s")
 
 # ── Tabs ──────────────────────────────────────────────────────────────
 
-tab_code, tab_logs, tab_timing, tab_valid, tab_agents = st.tabs(
-    ["🐍 Code", "📋 Logs", "⏱ Timing", "🛡 Validation", "🤖 Agents"]
+tab_code, tab_logs, tab_timing, tab_valid, tab_tests, tab_agents, tab_xai = st.tabs(
+    ["🐍 Code", "📋 Logs", "⏱ Timing", "🛡 Validation", "🧪 Test Cases", "🤖 Agents", "🔍 XAI"]
 )
 
 # ── Code tab ──────────────────────────────────────────────────────────
@@ -237,6 +237,7 @@ with tab_timing:
             "translation": ("⚙️",  "Translation (Groq)"),
             "execution":   ("🐛", "Sandbox + Debug Loop"),
             "validation":  ("✅", "Validation"),
+            "xai_analysis":("🔍", "XAI Analysis"),
         }
         total = timing.get("total", 0) or 1  # guard against zero-div
 
@@ -275,6 +276,90 @@ with tab_valid:
             st.error(f"Pipeline error: {err}")
         else:
             st.info("No validation data.")
+
+
+# ── Test Cases tab ────────────────────────────────────────────────────
+
+with tab_tests:
+    test_results = result.get("test_results", {})
+    pytest_data  = result.get("pytest_data", {})
+
+    if not test_results and not pytest_data:
+        st.info("No test data yet — run the pipeline first.")
+    else:
+        passed_list = test_results.get("passed", [])
+        failed_list = test_results.get("failed", [])
+        error_list  = test_results.get("errors", [])
+        summary_str = test_results.get("summary", "")
+        total_tests = len(passed_list) + len(failed_list)
+
+        # ── Headline metrics ────────────────────────────────────────
+        mc1, mc2, mc3, mc4 = st.columns(4)
+        mc1.metric("✅ Passed",  len(passed_list))
+        mc2.metric("❌ Failed",  len(failed_list))
+        mc3.metric("⚠️ Errors",  len(error_list))
+        mc4.metric("Total",      total_tests)
+
+        if summary_str:
+            badge = "✅" if not failed_list and not error_list else "⚠️"
+            st.markdown(f"**{badge} {summary_str}**")
+
+        st.divider()
+
+        # ── Per-test cards ──────────────────────────────────────────
+        all_tests = (
+            [(n, True)  for n in passed_list] +
+            [(n, False) for n in failed_list]
+        )
+
+        if all_tests:
+            st.markdown("#### Test Results")
+            for node, is_passed in all_tests:
+                icon  = "✅" if is_passed else "❌"
+                label = "PASSED" if is_passed else "FAILED"
+                with st.expander(f"{icon} `{node}` — **{label}**", expanded=False):
+                    st.markdown(f"**Status:** `{label}`")
+                    # Show which COBOL test case this maps to (if available)
+                    test_cases = pytest_data.get("test_cases", [])
+                    fn_name = node.split("::")[-1] if "::" in node else node
+                    for tc in test_cases:
+                        if tc.get("name") == fn_name:
+                            st.markdown(f"**Category:** `{tc.get('category', 'N/A')}`")
+                            st.markdown(f"**Description:** {tc.get('description', '')}")
+                            if tc.get("inputs"):
+                                st.json(tc["inputs"])
+                            break
+        else:
+            st.info("No individual test results to display (collection may have failed).")
+
+        # ── Collection errors ───────────────────────────────────────
+        if error_list:
+            st.markdown("#### ⚠️ Collection / Import Errors")
+            for err in error_list:
+                st.error(err)
+
+        # ── Raw pytest output ───────────────────────────────────────
+        raw_stdout = test_results.get("stdout", "")
+        if raw_stdout:
+            with st.expander("📄 Raw pytest output"):
+                st.code(raw_stdout, language="text")
+
+        # ── Download generated test file ────────────────────────────
+        test_code = pytest_data.get("test_code", "")
+        if test_code:
+            st.divider()
+            st.markdown("#### 📥 Download Generated Test File")
+            module_id = result.get("agents", {}).get(
+                "expert_1_structure", {}
+            ).get("program_id", "program").lower().replace("-", "_")
+            st.download_button(
+                "⬇️ Download pytest file",
+                test_code,
+                file_name=f"test_{module_id}.py",
+                mime="text/x-python",
+            )
+            with st.expander("👁 Preview test file"):
+                st.code(test_code, language="python", line_numbers=True)
 
 
 # ── Agents tab ────────────────────────────────────────────────────────
@@ -363,3 +448,159 @@ with tab_agents:
         if show_agent_json:
             st.subheader("🔎 Raw Agent JSON")
             st.json(agents)
+
+
+# ── XAI tab ───────────────────────────────────────────────────────────
+
+with tab_xai:
+    xai = result.get("xai", {})
+
+    if not xai:
+        st.info("No explainability data yet — run the pipeline first.")
+    else:
+        import json as _json
+
+        st.markdown("### 🔍 Explainable AI Report")
+        st.caption(f"Program: **{xai.get('program_id', 'N/A')}** — Status: **{xai.get('pipeline_status', 'N/A')}**")
+
+        # ── 1. Confidence Decomposition ────────────────────────────
+        st.markdown("#### 📊 Confidence Decomposition")
+        cd = xai.get("confidence_decomposition", {})
+        overall = cd.get("overall", 0)
+
+        st.markdown(f"**Overall Confidence: {overall:.1f}%**")
+        st.progress(min(int(overall), 100))
+
+        sub_scores = [
+            ("Syntax Validity",      cd.get("syntax_validity", 0)),
+            ("Execution Stability",  cd.get("execution_stability", 0)),
+            ("Test Coverage",        cd.get("test_coverage", 0)),
+            ("Debug Convergence",    cd.get("debug_convergence", 0)),
+            ("RAG Relevance",        cd.get("rag_relevance", 0)),
+        ]
+        cols = st.columns(5)
+        for col, (label, score) in zip(cols, sub_scores):
+            col.metric(label, f"{score:.0f}%")
+
+        st.divider()
+
+        # ── 2. Agent Contributions ─────────────────────────────────
+        st.markdown("#### 🤖 Agent Contributions")
+        agents_xai = xai.get("agent_contributions", [])
+        if agents_xai:
+            for agent in agents_xai:
+                score_pct = agent.get("contribution_score", 0) * 100
+                status_icon = "✅" if agent.get("status") == "success" else "❌"
+                with st.expander(
+                    f"{status_icon} **{agent['name']}** — {score_pct:.1f}% of pipeline time",
+                    expanded=False,
+                ):
+                    st.markdown(f"**Role:** {agent.get('role', '')}")
+                    st.markdown(f"**Model:** `{agent.get('model', 'N/A')}`")
+                    st.markdown(f"**Details:** {agent.get('details', '')}")
+                    st.progress(min(score_pct / 100, 1.0))
+
+        st.divider()
+
+        # ── 3. Decision Trace ──────────────────────────────────────
+        st.markdown("#### 🗺️ Decision Trace (Paragraph Mapping)")
+        traces = xai.get("decision_trace", [])
+        if traces:
+            for tr in traces:
+                mapped_icon = "✅" if tr.get("python_mapped") else "⚠️"
+                patterns = tr.get("patterns_used", [])
+                pattern_str = ", ".join(patterns) if patterns else "no specific patterns"
+                with st.expander(
+                    f"{mapped_icon} `{tr['paragraph_name']}` — {'Mapped' if tr.get('python_mapped') else 'NOT mapped'}",
+                    expanded=False,
+                ):
+                    st.markdown(f"**COBOL→Python patterns:** {pattern_str}")
+        else:
+            st.info("No paragraphs detected.")
+
+        st.divider()
+
+        # ── 4. Translation Patterns ────────────────────────────────
+        st.markdown("#### 🔄 Detected Translation Patterns")
+        patterns = xai.get("translation_patterns", [])
+        if patterns:
+            categories = {}
+            for p in patterns:
+                cat = p.get("category", "other")
+                categories.setdefault(cat, []).append(p)
+            for cat, items in sorted(categories.items()):
+                st.markdown(f"**{cat.replace('_', ' ').title()}:**")
+                for item in items:
+                    st.markdown(
+                        f"- `{item['cobol_construct']}` → *{item['python_idiom']}*"
+                    )
+        else:
+            st.info("No patterns detected.")
+
+        st.divider()
+
+        # ── 5. RAG Influence ───────────────────────────────────────
+        st.markdown("#### 📚 RAG Influence")
+        rag = xai.get("rag_influence", {})
+        rc1, rc2, rc3 = st.columns(3)
+        rc1.metric("KB Docs Injected", rag.get("kb_docs_injected", 0))
+        rc2.metric("Influence Level", rag.get("influence_level", "none").capitalize())
+        rc3.metric("RAG Build Time", f"{rag.get('rag_build_time_s', 0):.3f}s")
+        st.markdown(rag.get("description", ""))
+
+        st.divider()
+
+        # ── 6. Debug Analysis ──────────────────────────────────────
+        st.markdown("#### 🐛 Debug Loop Analysis")
+        debug = xai.get("debug_analysis", {})
+        converged = debug.get("converged", False)
+        dc1, dc2, dc3, dc4 = st.columns(4)
+        dc1.metric("Iterations", debug.get("total_iterations", 0))
+        dc2.metric("Converged", "Yes ✓" if converged else "No ✗")
+        dc3.metric("Rule Fixes", debug.get("rule_based_fixes", 0))
+        dc4.metric("LLM Fixes", debug.get("llm_escalation_fixes", 0))
+        st.markdown(debug.get("convergence_description", ""))
+
+        debug_iters = debug.get("iterations", [])
+        if debug_iters:
+            st.markdown("**Iteration Timeline:**")
+            for it in debug_iters:
+                r_icon = "✅" if it.get("resolved") else "❌"
+                st.markdown(
+                    f"- {r_icon} **Iter {it['iteration']}** | "
+                    f"Error: `{it['error_type']}` | "
+                    f"Strategy: `{it['fix_strategy']}` | "
+                    f"{it['fix_description']}"
+                )
+
+        st.divider()
+
+        # ── 7. Risk Indicators ─────────────────────────────────────
+        st.markdown("#### ⚠️ Risk Indicators")
+        risks = xai.get("risk_indicators", [])
+        if risks:
+            for risk in risks:
+                sev = risk.get("severity", "low")
+                if sev == "high":
+                    st.error(f"🔴 **{risk['category'].upper()}** — {risk['message']}")
+                elif sev == "medium":
+                    st.warning(f"🟡 **{risk['category'].upper()}** — {risk['message']}")
+                else:
+                    st.info(f"🔵 **{risk['category'].upper()}** — {risk['message']}")
+                if risk.get("suggestion"):
+                    st.caption(f"💡 {risk['suggestion']}")
+        else:
+            st.success("No risks detected — translation looks clean!")
+
+        st.divider()
+
+        # ── 8. Summary & Download ──────────────────────────────────
+        st.markdown("#### 📝 Summary")
+        st.code(xai.get("summary_text", ""), language="text")
+
+        st.download_button(
+            "📥 Download XAI Report (JSON)",
+            _json.dumps(xai, indent=2, default=str),
+            file_name=f"xai_report_{xai.get('program_id', 'program').lower()}.json",
+            mime="application/json",
+        )

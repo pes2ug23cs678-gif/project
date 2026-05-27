@@ -8,7 +8,7 @@ LLM_BACKEND       = os.environ.get("LLM_BACKEND", "groq")
 GROQ_API_KEY      = os.environ.get("GROQ_API_KEY", "")
 OPENAI_BASE_URL   = os.environ.get("OPENAI_BASE_URL", "https://api.groq.com/openai/v1")
 OPENAI_MODEL      = os.environ.get("OPENAI_MODEL", "llama-3.3-70b-versatile")
-OPENAI_MAX_TOKENS = 8192
+OPENAI_MAX_TOKENS = 4096
 
 # Aliases — kept for any code that still references DEEPSEEK_* names
 DEEPSEEK_API_KEY    = GROQ_API_KEY
@@ -21,5 +21,6 @@ SMOLLM_BASE_URL   = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 SMOLLM_MODEL      = os.environ.get("SMOLLM_MODEL", "smollm:135m")
 
 # Sandbox
-SANDBOX_TIMEOUT   = 5   # seconds
-SANDBOX_MAX_ITER  = 7   # max debug iterations
+SANDBOX_TIMEOUT        = 5    # seconds — single-file execution
+SANDBOX_MAX_ITER       = 7    # max debug iterations
+PYTEST_SANDBOX_TIMEOUT = 30   # seconds — full pytest suite (needs more headroom)

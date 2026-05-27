@@ -1,0 +1,50 @@
+[SOURCE: cobol_fileio_pattern — COBOL File I/O → Python file handle patterns]
+
+FILE HANDLE DECLARATION (module level, always None):
+  _account_fh = None
+  _transaction_fh = None
+  _report_fh = None
+
+OPEN in init() — use try/except IOError, set EOF on failure:
+  COBOL:  OPEN INPUT ACCOUNT-FILE
+  Python: try:
+              _account_fh = open(ACCOUNT_FILE_PATH, "r", encoding="utf-8")
+          except IOError:
+              ws_eof_acc = "Y"
+
+PRIMING READ (init must store first record, not discard it):
+  COBOL:  PERFORM READ-ACCOUNT.
+  Python: def init_files() -> None:
+              global _account_fh, ws_eof_acc, account_rec
+              ...open files...
+              line = _account_fh.readline()
+              if not line:
+                  ws_eof_acc = "Y"
+              else:
+                  account_rec = _parse_account_line(line)  # ALWAYS store
+
+READ ... AT END → readline with both branches:
+  COBOL:  READ ACCOUNT-FILE AT END MOVE 'Y' TO WS-EOF-ACC.
+  Python: def read_account() -> None:
+              global ws_eof_acc, account_rec
+              line = _account_fh.readline()
+              if not line:
+                  ws_eof_acc = "Y"
+              else:
+                  account_rec = _parse_account_line(line)
+
+WRITE → file.write() — NEVER leave as comment:
+  COBOL:  WRITE REPORT-REC
+  Python: _report_fh.write(report_rec.ljust(120) + "\n")
+
+CLOSE in cleanup():
+  COBOL:  CLOSE ACCOUNT-FILE TRANSACTION-FILE REPORT-FILE.
+  Python: def cleanup() -> None:
+              for fh in (_account_fh, _transaction_fh, _report_fh):
+                  if fh:
+                      fh.close()
+
+FIXED-WIDTH PARSING — always slicing, never split():
+  PIC 9(6)       → int(line[0:6].strip() or "0")
+  PIC X(25)      → line[6:31]
+  PIC S9(7)V99   → Decimal(line[31:40]) if "." in line[31:40] else Decimal(line[31:40]) / 100

@@ -3,6 +3,7 @@
 import re
 from openai import OpenAI
 from config import GROQ_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, OPENAI_MAX_TOKENS
+from agents.retry import call_with_retry
 
 _client = OpenAI(api_key=GROQ_API_KEY, base_url=OPENAI_BASE_URL)
 
@@ -220,8 +221,24 @@ def _strip_markdown(text: str) -> str:
     return text
 
 
-def generate_python(cobol_code: str, structured_analysis: dict = None) -> str:
-    """Translate any COBOL program to Python using Groq (llama-3.3-70b-versatile)."""
+def generate_python(
+    cobol_code: str,
+    structured_analysis: dict = None,
+    rag_context: dict = None,
+) -> str:
+    """Translate any COBOL program to Python using Groq (llama-3.3-70b-versatile).
+
+    Parameters
+    ----------
+    cobol_code:
+        Raw COBOL source to translate.
+    structured_analysis:
+        Optional dict produced by the Structure Expert (program_id, paragraphs …).
+    rag_context:
+        Optional dict produced by ``_step_rag_context()`` in main.py.  Any key
+        starting with ``"kb:"`` is a knowledge-base document snippet that will be
+        injected into the prompt so the LLM can use cross-module reference data.
+    """
     user_message = cobol_code.strip()
 
     if structured_analysis:
@@ -236,7 +253,24 @@ def generate_python(cobol_code: str, structured_analysis: dict = None) -> str:
             f"{cobol_code.strip()}"
         )
 
-    response = _client.chat.completions.create(
+    # Inject knowledge-base snippets when available
+    if rag_context:
+        kb_snippets = [
+            f"--- {key.replace('kb:', '')} ---\n{snippet}"
+            for key, snippet in rag_context.items()
+            if key.startswith("kb:")
+        ]
+        if kb_snippets:
+            kb_block = "\n\n".join(kb_snippets)
+            user_message = (
+                f"{user_message}\n\n"
+                f"[KNOWLEDGE BASE CONTEXT — use these COBOL→Python mappings as "
+                f"reference; do NOT copy them verbatim]\n"
+                f"{kb_block}"
+            )
+
+    response = call_with_retry(
+        _client.chat.completions.create,
         model=OPENAI_MODEL,
         max_tokens=OPENAI_MAX_TOKENS,
         temperature=0,

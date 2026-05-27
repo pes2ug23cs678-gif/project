@@ -1,0 +1,152 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. BANK-LEDGER.
+       AUTHOR. SYSTEM.
+       DATE-WRITTEN. 2024-01-01.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT ACCOUNT-FILE   ASSIGN TO 'accounts.dat'
+               ORGANIZATION IS SEQUENTIAL.
+           SELECT TRANS-FILE     ASSIGN TO 'transactions.dat'
+               ORGANIZATION IS SEQUENTIAL.
+           SELECT AUDIT-FILE     ASSIGN TO 'audit_log.txt'
+               ORGANIZATION IS SEQUENTIAL.
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD ACCOUNT-FILE.
+       01 ACCOUNT-RECORD.
+          05 ACC-NUMBER      PIC X(14).
+          05 ACC-HOLDER-NAME PIC X(40).
+          05 ACC-TYPE        PIC X(2).
+             88 ACC-SAVINGS  VALUE 'SV'.
+             88 ACC-CURRENT  VALUE 'CU'.
+             88 ACC-FIXED    VALUE 'FD'.
+          05 ACC-BALANCE     PIC S9(11)V99 COMP-3.
+          05 ACC-INT-RATE    PIC 9(2)V9999 COMP-3.
+          05 ACC-STATUS      PIC X(1).
+             88 ACC-ACTIVE   VALUE 'A'.
+             88 ACC-FROZEN   VALUE 'F'.
+             88 ACC-CLOSED   VALUE 'C'.
+
+       FD TRANS-FILE.
+       01 TRANS-RECORD.
+          05 TXN-ID          PIC X(16).
+          05 TXN-ACC-NO      PIC X(14).
+          05 TXN-TYPE        PIC X(3).
+             88 TXN-DEPOSIT  VALUE 'DEP'.
+             88 TXN-WITHDRAW VALUE 'WDR'.
+             88 TXN-TRANSFER VALUE 'TRF'.
+          05 TXN-AMOUNT      PIC S9(9)V99 COMP-3.
+          05 TXN-DATE        PIC 9(8).
+          05 TXN-STATUS      PIC X(1).
+
+       FD AUDIT-FILE.
+       01 AUDIT-LINE         PIC X(200).
+
+       WORKING-STORAGE SECTION.
+       01 WS-EOF-ACCT        PIC X VALUE 'N'.
+       01 WS-EOF-TRANS       PIC X VALUE 'N'.
+       01 WS-INTEREST        PIC S9(9)V99 COMP-3.
+       01 WS-NEW-BALANCE     PIC S9(11)V99 COMP-3.
+       01 WS-DAILY-RATE      PIC 9(2)V999999 COMP-3.
+       01 WS-TXN-COUNT       PIC 9(7) VALUE ZERO.
+       01 WS-ERROR-COUNT     PIC 9(5) VALUE ZERO.
+       01 WS-AUDIT-LINE      PIC X(200).
+       01 WS-INSUFFICIENT    PIC X VALUE 'N'.
+
+       PROCEDURE DIVISION.
+       MAIN-LOGIC.
+           PERFORM OPEN-FILES.
+           PERFORM APPLY-INTEREST-ALL.
+           PERFORM PROCESS-TRANSACTIONS.
+           PERFORM WRITE-AUDIT-SUMMARY.
+           PERFORM CLOSE-FILES.
+           STOP RUN.
+
+       OPEN-FILES.
+           OPEN INPUT  ACCOUNT-FILE TRANS-FILE.
+           OPEN OUTPUT AUDIT-FILE.
+
+       APPLY-INTEREST-ALL.
+           PERFORM READ-ACCOUNT.
+           PERFORM UNTIL WS-EOF-ACCT = 'Y'
+               IF ACC-ACTIVE AND (ACC-SAVINGS OR ACC-FIXED)
+                   PERFORM CALCULATE-INTEREST
+                   PERFORM UPDATE-BALANCE
+               END-IF
+               PERFORM READ-ACCOUNT
+           END-PERFORM.
+
+       READ-ACCOUNT.
+           READ ACCOUNT-FILE
+               AT END MOVE 'Y' TO WS-EOF-ACCT.
+
+       CALCULATE-INTEREST.
+           COMPUTE WS-DAILY-RATE = ACC-INT-RATE / 365.
+           COMPUTE WS-INTEREST   = ACC-BALANCE * WS-DAILY-RATE.
+
+       UPDATE-BALANCE.
+           ADD WS-INTEREST TO ACC-BALANCE.
+           REWRITE ACCOUNT-RECORD.
+
+       PROCESS-TRANSACTIONS.
+           PERFORM READ-TRANSACTION.
+           PERFORM UNTIL WS-EOF-TRANS = 'Y'
+               PERFORM EXECUTE-TRANSACTION
+               ADD 1 TO WS-TXN-COUNT
+               PERFORM READ-TRANSACTION
+           END-PERFORM.
+
+       READ-TRANSACTION.
+           READ TRANS-FILE
+               AT END MOVE 'Y' TO WS-EOF-TRANS.
+
+       EXECUTE-TRANSACTION.
+           MOVE 'N' TO WS-INSUFFICIENT.
+           EVALUATE TRUE
+               WHEN TXN-DEPOSIT
+                   ADD TXN-AMOUNT TO ACC-BALANCE
+               WHEN TXN-WITHDRAW
+                   PERFORM CHECK-SUFFICIENT-FUNDS
+                   IF WS-INSUFFICIENT = 'N'
+                       SUBTRACT TXN-AMOUNT FROM ACC-BALANCE
+                   ELSE
+                       ADD 1 TO WS-ERROR-COUNT
+                       PERFORM LOG-INSUFFICIENT-FUNDS
+                   END-IF
+               WHEN TXN-TRANSFER
+                   PERFORM CHECK-SUFFICIENT-FUNDS
+                   IF WS-INSUFFICIENT = 'N'
+                       SUBTRACT TXN-AMOUNT FROM ACC-BALANCE
+                   ELSE
+                       ADD 1 TO WS-ERROR-COUNT
+                   END-IF
+               WHEN OTHER
+                   ADD 1 TO WS-ERROR-COUNT
+           END-EVALUATE.
+
+       CHECK-SUFFICIENT-FUNDS.
+           IF ACC-BALANCE < TXN-AMOUNT
+               MOVE 'Y' TO WS-INSUFFICIENT
+           ELSE
+               MOVE 'N' TO WS-INSUFFICIENT
+           END-IF.
+
+       LOG-INSUFFICIENT-FUNDS.
+           STRING 'INSUFFICIENT FUNDS: ACC=' TXN-ACC-NO
+                  ' AMT=' TXN-AMOUNT ' BAL=' ACC-BALANCE
+               DELIMITED SIZE INTO WS-AUDIT-LINE.
+           MOVE WS-AUDIT-LINE TO AUDIT-LINE.
+           WRITE AUDIT-LINE.
+
+       WRITE-AUDIT-SUMMARY.
+           STRING 'AUDIT: TOTAL-TXN=' WS-TXN-COUNT
+                  ' ERRORS=' WS-ERROR-COUNT
+               DELIMITED SIZE INTO WS-AUDIT-LINE.
+           MOVE WS-AUDIT-LINE TO AUDIT-LINE.
+           WRITE AUDIT-LINE.
+
+       CLOSE-FILES.
+           CLOSE ACCOUNT-FILE TRANS-FILE AUDIT-FILE.

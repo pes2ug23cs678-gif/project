@@ -6,8 +6,14 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from openai import OpenAI
+
 from agents.base import BaseExpert
 from agents.prompts import TestPrompt
+from config import GROQ_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, OPENAI_MAX_TOKENS
+
+# Shared LLM client (same backend as TranslationExpert)
+_client = OpenAI(api_key=GROQ_API_KEY, base_url=OPENAI_BASE_URL)
 
 
 # ---------------------------------------------------------------------------
@@ -63,26 +69,76 @@ class TestExpert(BaseExpert):
         context: dict[str, Any] | None = None,
         **_: Any,
     ) -> dict[str, Any]:
-        """Generate test cases and a test file."""
+        """Generate test cases and a fully-asserted test file via LLM."""
         ctx = self.validate_context(context)
         analysis = structure_analysis or {}
         result = TestResult()
 
+        # 1. Derive structured test-case metadata (fast, rule-based)
         result.test_cases = self._derive_cases(python_code, analysis)
-        result.test_code = self._gen_code(result.test_cases, analysis)
 
+        # 2. Build the pytest skeleton (stubs with pass)
+        skeleton = self._gen_code(result.test_cases, analysis)
+
+        # 3. Build the LLM prompt
         case_summary = "\n".join(
             f"  - [{tc.category}] {tc.name}: {tc.description}"
             for tc in result.test_cases
         )
         result.prompt_payload = TestPrompt.build(
             python_code=python_code, cobol_source=cobol_source,
-            test_cases_summary=case_summary, test_skeleton=result.test_code,
+            test_cases_summary=case_summary, test_skeleton=skeleton,
             context=ctx,
         )
 
+        # 4. Call Groq to fill assertions (falls back to skeleton on error)
+        result.test_code = self._call_llm(result.prompt_payload, skeleton)
+
         self.logger.debug("Generated %d test cases", len(result.test_cases))
         return result.to_dict()
+
+    # ------------------------------------------------------------------
+    # LLM call
+    # ------------------------------------------------------------------
+
+    def _call_llm(self, prompt: str, fallback: str) -> str:
+        """Ask Groq to fill in pytest assertions. Returns fallback on failure."""
+        try:
+            response = _client.chat.completions.create(
+                model=OPENAI_MODEL,
+                max_tokens=OPENAI_MAX_TOKENS,
+                temperature=0,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a senior QA engineer. Complete the pytest file "
+                            "below so every `pass` stub is replaced with meaningful "
+                            "assertions. Return ONLY the complete Python file — "
+                            "no markdown fences, no explanations."
+                        ),
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            raw = response.choices[0].message.content.strip()
+            return self._strip_markdown(raw) or fallback
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning("LLM call failed, using skeleton: %s", exc)
+            return fallback
+
+    @staticmethod
+    def _strip_markdown(text: str) -> str:
+        """Remove ```python … ``` fences if the LLM wraps its output."""
+        m = re.match(r'^```(?:python)?\s*\n(.*?)```\s*$', text, re.DOTALL)
+        if m:
+            return m.group(1).strip()
+        if text.startswith("```"):
+            lines = text.splitlines()[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            return "\n".join(lines).strip()
+        return text
 
     # ------------------------------------------------------------------
     # Test case derivation
@@ -154,7 +210,7 @@ class TestExpert(BaseExpert):
             '"""', f"Auto-generated test suite for {module}.",
             "", f"Run with:  pytest test_{module}.py -v", '"""',
             "", "import pytest",
-            f"# from {module} import *  # Uncomment when module is available",
+            f"from {module} import *  # noqa: F401,F403",
             "", "",
         ]
         for tc in cases:

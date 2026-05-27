@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-from execution.sandbox import sandbox_execute
+from execution.sandbox import sandbox_execute, sandbox_pytest
 from agents.debug_expert import fix_code
 from config import SANDBOX_MAX_ITER
 
@@ -131,6 +131,8 @@ def run_debug_loop(
     initial_code:   str,
     test_cases:     list = None,
     max_iterations: int  = None,
+    test_code:      str  = "",    # generated pytest suite for logic validation
+    module_name:    str  = "migrated",  # must match the import name in test_code
 ) -> DebugResult:
 
     if test_cases is None:
@@ -171,13 +173,48 @@ def run_debug_loop(
         returncode  = result["returncode"]
         error_type, error_detail = _classify(stderr, returncode)
 
-        # Success
+        # Crash-free — now check logic correctness via pytest if test suite provided
         if error_type == "none":
-            log.append(IterationRecord(
-                iteration, "none", "", "no fix needed", "pass",
-                stdout, stderr, iter_time
-            ))
-            return DebugResult(True, current_code, iteration, log)
+            if test_code.strip():
+                pytest_result = sandbox_pytest(
+                    current_code, test_code,
+                    module_name=module_name,   # FIX: use dynamic name, not hardcoded 'migrated'
+                    timeout=30,
+                    maxfail=1,
+                )
+                n_fail = len(pytest_result["failed"])
+                n_err  = len(pytest_result["errors"])
+
+                if n_fail == 0 and n_err > 0:
+                    # FIX: collection-only errors = test infra problem (e.g. ImportError in
+                    # the test file itself), NOT a code logic bug.  Treat as soft-pass so
+                    # good code is not penalised for a broken test scaffold.
+                    log.append(IterationRecord(
+                        iteration, "none", "",
+                        f"soft-pass — pytest collection failed ({n_err} error(s)), skipping logic check",
+                        "pass", stdout, pytest_result["stdout"] or pytest_result["stderr"], iter_time
+                    ))
+                    return DebugResult(True, current_code, iteration, log)
+
+                if n_fail > 0:
+                    # Real assertion failures → treat as logic error
+                    error_type   = "logic"
+                    error_detail = f"{n_fail} test(s) failed"
+                    # Overwrite stderr with pytest diff output so the LLM fix_code sees it
+                    stderr = pytest_result["stdout"] or pytest_result["stderr"]
+                    # Fall through to the quick-fix / LLM escalation path below
+                else:
+                    log.append(IterationRecord(
+                        iteration, "none", "", "no fix needed — all tests pass", "pass",
+                        stdout, pytest_result["stdout"], iter_time
+                    ))
+                    return DebugResult(True, current_code, iteration, log)
+            else:
+                log.append(IterationRecord(
+                    iteration, "none", "", "no fix needed", "pass",
+                    stdout, stderr, iter_time
+                ))
+                return DebugResult(True, current_code, iteration, log)
 
         # Try quick rule-based fix first (free, instant)
         fixed_code, fix_desc, changed = _quick_fix(

@@ -1,0 +1,124 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PAYROLL.
+       AUTHOR. SYSTEM.
+       DATE-WRITTEN. 2024-01-01.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT EMPLOYEE-FILE ASSIGN TO 'employees.dat'
+               ORGANIZATION IS SEQUENTIAL.
+           SELECT PAYROLL-FILE ASSIGN TO 'payroll.dat'
+               ORGANIZATION IS SEQUENTIAL.
+           SELECT REPORT-FILE ASSIGN TO 'payroll_report.txt'
+               ORGANIZATION IS SEQUENTIAL.
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD EMPLOYEE-FILE.
+       01 EMPLOYEE-RECORD.
+          05 EMP-ID         PIC 9(6).
+          05 EMP-NAME       PIC X(30).
+          05 EMP-DEPT       PIC X(10).
+          05 EMP-GRADE      PIC 9(2).
+          05 EMP-BASIC-PAY  PIC S9(7)V99 COMP-3.
+          05 EMP-STATUS     PIC X(1).
+             88 EMP-ACTIVE  VALUE 'A'.
+             88 EMP-INACTIVE VALUE 'I'.
+
+       FD PAYROLL-FILE.
+       01 PAYROLL-RECORD.
+          05 PAY-EMP-ID     PIC 9(6).
+          05 PAY-MONTH      PIC 9(2).
+          05 PAY-YEAR       PIC 9(4).
+          05 PAY-GROSS      PIC S9(9)V99 COMP-3.
+          05 PAY-TAX        PIC S9(7)V99 COMP-3.
+          05 PAY-NET        PIC S9(9)V99 COMP-3.
+
+       FD REPORT-FILE.
+       01 REPORT-REC        PIC X(132).
+
+       WORKING-STORAGE SECTION.
+       01 WS-EOF-EMP        PIC X VALUE 'N'.
+       01 WS-CURRENT-MONTH  PIC 9(2).
+       01 WS-CURRENT-YEAR   PIC 9(4).
+       01 WS-HRA            PIC S9(7)V99 COMP-3.
+       01 WS-DA             PIC S9(7)V99 COMP-3.
+       01 WS-GROSS          PIC S9(9)V99 COMP-3.
+       01 WS-TAX            PIC S9(7)V99 COMP-3.
+       01 WS-NET            PIC S9(9)V99 COMP-3.
+       01 WS-TOTAL-PAYROLL  PIC S9(11)V99 COMP-3 VALUE ZERO.
+       01 WS-EMP-COUNT      PIC 9(5) VALUE ZERO.
+       01 WS-REPORT-LINE    PIC X(132).
+
+       PROCEDURE DIVISION.
+       MAIN-LOGIC.
+           PERFORM INIT-PROCESSING.
+           PERFORM READ-EMPLOYEE.
+           PERFORM PROCESS-EMPLOYEES UNTIL WS-EOF-EMP = 'Y'.
+           PERFORM GENERATE-SUMMARY.
+           PERFORM CLOSE-FILES.
+           STOP RUN.
+
+       INIT-PROCESSING.
+           OPEN INPUT  EMPLOYEE-FILE
+                OUTPUT PAYROLL-FILE
+                       REPORT-FILE.
+           MOVE FUNCTION CURRENT-DATE(5:2) TO WS-CURRENT-MONTH.
+           MOVE FUNCTION CURRENT-DATE(1:4) TO WS-CURRENT-YEAR.
+           MOVE 'N' TO WS-EOF-EMP.
+           MOVE ZERO TO WS-TOTAL-PAYROLL WS-EMP-COUNT.
+
+       READ-EMPLOYEE.
+           READ EMPLOYEE-FILE
+               AT END MOVE 'Y' TO WS-EOF-EMP.
+
+       PROCESS-EMPLOYEES.
+           IF EMP-ACTIVE
+               PERFORM CALCULATE-SALARY
+               PERFORM WRITE-PAYROLL
+               ADD 1 TO WS-EMP-COUNT
+           END-IF.
+           PERFORM READ-EMPLOYEE.
+
+       CALCULATE-SALARY.
+           COMPUTE WS-HRA = EMP-BASIC-PAY * 0.40.
+           COMPUTE WS-DA  = EMP-BASIC-PAY * 0.20.
+           COMPUTE WS-GROSS = EMP-BASIC-PAY + WS-HRA + WS-DA.
+           PERFORM CALCULATE-TAX.
+           COMPUTE WS-NET = WS-GROSS - WS-TAX.
+           ADD WS-NET TO WS-TOTAL-PAYROLL.
+
+       CALCULATE-TAX.
+           EVALUATE TRUE
+               WHEN WS-GROSS > 100000
+                   COMPUTE WS-TAX = WS-GROSS * 0.30
+               WHEN WS-GROSS > 50000
+                   COMPUTE WS-TAX = WS-GROSS * 0.20
+               WHEN WS-GROSS > 25000
+                   COMPUTE WS-TAX = WS-GROSS * 0.10
+               WHEN OTHER
+                   MOVE ZERO TO WS-TAX
+           END-EVALUATE.
+
+       WRITE-PAYROLL.
+           MOVE EMP-ID         TO PAY-EMP-ID.
+           MOVE WS-CURRENT-MONTH TO PAY-MONTH.
+           MOVE WS-CURRENT-YEAR  TO PAY-YEAR.
+           MOVE WS-GROSS         TO PAY-GROSS.
+           MOVE WS-TAX           TO PAY-TAX.
+           MOVE WS-NET           TO PAY-NET.
+           WRITE PAYROLL-RECORD.
+
+       GENERATE-SUMMARY.
+           STRING 'PAYROLL SUMMARY - TOTAL EMPLOYEES: '
+                  WS-EMP-COUNT
+                  ' TOTAL NET PAY: '
+                  WS-TOTAL-PAYROLL
+               DELIMITED SIZE
+               INTO WS-REPORT-LINE.
+           MOVE WS-REPORT-LINE TO REPORT-REC.
+           WRITE REPORT-REC.
+
+       CLOSE-FILES.
+           CLOSE EMPLOYEE-FILE PAYROLL-FILE REPORT-FILE.

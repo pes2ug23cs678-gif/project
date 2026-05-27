@@ -32,7 +32,7 @@ except ImportError:
     pass  # python-dotenv not installed — rely on shell env vars
 
 # ── Module imports ────────────────────────────────────────────────────────
-from config import SANDBOX_TIMEOUT, SANDBOX_MAX_ITER
+from config import SANDBOX_TIMEOUT, SANDBOX_MAX_ITER, PYTEST_SANDBOX_TIMEOUT
 
 # Preprocessing
 from preprocessing.preprocessor import chunk_by_procedure
@@ -40,10 +40,17 @@ from preprocessing.preprocessor import chunk_by_procedure
 # Agent system (new model stack)
 from agents.router import classify
 from agents.translation_expert import generate_python
+from agents.test_expert import TestExpert
 
 # Execution layer (new: sandbox.py + debug_loop.py)
-from execution.sandbox import sandbox_execute
+from execution.sandbox import sandbox_execute, sandbox_pytest
 from execution.debug_loop import run_debug_loop
+
+# Explainability
+from explainability import generate_xai_report
+
+# Shared TestExpert instance
+_test_expert = TestExpert()
 
 
 # ── Logger ────────────────────────────────────────────────────────────────
@@ -126,36 +133,100 @@ def _step_build_analysis(preprocessed: dict[str, Any], logs: list[str]) -> dict[
     return analysis
 
 
-def _step_rag_context(preprocessed: dict[str, Any], logs: list[str]) -> dict[str, Any]:
-    """STEP 3 — Lightweight RAG context from chunks + on-disk knowledge base."""
+def _step_rag_context(
+    preprocessed: dict[str, Any],
+    logs: list[str],
+    route: str | None = None,
+) -> dict[str, Any]:
+    """STEP 3 — Semantic RAG context with keyword-based fallback and distractor filtering."""
     t0 = time.perf_counter()
     logs.append("[3/7] Building RAG context …")
 
-    chunks = preprocessed["chunks"]
     context: dict[str, Any] = {}
 
+    # 1. Chunk previews (keep existing behavior for chunk contexts)
+    chunks = preprocessed.get("chunks", [])
     for idx, chunk in enumerate(chunks):
         preview = chunk[:120].replace("\n", " ")
         context[f"chunk_{idx}"] = preview
 
-    kb_dir = os.path.join("data", "knowledge_base")
-    kb_files: list[str] = []
-    if os.path.isdir(kb_dir):
-        kb_files = [f for f in os.listdir(kb_dir) if f.endswith(".txt")]
-        if kb_files:
-            context["kb_documents"] = len(kb_files)
-            for kb_file in kb_files[:5]:
-                path = os.path.join(kb_dir, kb_file)
-                with open(path, "r", encoding="utf-8") as fh:
-                    context[f"kb:{kb_file}"] = fh.read()[:200]
+    # 2. ExpertRAG Gating: Skip KB retrieval for simple routes
+    if route == "simple":
+        elapsed = time.perf_counter() - t0
+        logs.append(f"      [RAG] Skipped — simple route (ExpertRAG gating) [{elapsed:.3f}s]")
+        logger.info("RAG retrieval skipped for simple route")
+        return context
+
+    # 3. Retrieve relevant documents using semantic search (ChromaDB)
+    cleaned_source = preprocessed.get("cleaned_source", "")
+    retrieved_docs = []
+
+    # Try semantic retrieval (Phase 2)
+    try:
+        from rag.vector_store import retrieve
+        # Use first 2000 characters as search query
+        retrieved_docs = retrieve(cleaned_source[:2000], top_k=5)
+    except Exception as exc:
+        logger.warning("ChromaDB retrieval failed, falling back to keyword-based retrieval: %s", exc)
+        # Keyword-based fallback (Phase 1)
+        kb_dir = os.path.join("data", "knowledge_base")
+        if os.path.isdir(kb_dir):
+            code_upper = cleaned_source.upper()
+            RELEVANCE_MAP = {
+                "cobol_evaluate_pattern.txt": ["EVALUATE", "WHEN"],
+                "cobol_fileio_pattern.txt":   ["FILE-CONTROL", "SELECT", "READ", "WRITE", "OPEN"],
+                "cobol_occurs_pattern.txt":   ["OCCURS", "VARYING"],
+            }
+            for kb_file in os.listdir(kb_dir):
+                if kb_file in RELEVANCE_MAP:
+                    keywords = RELEVANCE_MAP[kb_file]
+                    if any(kw in code_upper for kw in keywords):
+                        path = os.path.join(kb_dir, kb_file)
+                        try:
+                            with open(path, "r", encoding="utf-8") as fh:
+                                content = fh.read()
+                            retrieved_docs.append({
+                                "content": content,
+                                "source": kb_file,
+                                "type": "pattern",
+                                "relevance_score": 1.0
+                            })
+                        except Exception as read_err:
+                            logger.error("Failed to read fallback KB file %s: %s", path, read_err)
+
+    # 4. Filter distractors & inject full pattern files (OPEN-RAG Distractor concept)
+    injected_count = 0
+    code_upper = cleaned_source.upper()
+
+    for doc in retrieved_docs:
+        source = doc["source"]
+        doc_type = doc.get("type", "unknown")
+
+        # Determine if doc is a distractor
+        is_distractor = False
+        if doc_type == "reference":
+            # Raw COBOL references are distractors unless we are translating a program of the same name
+            is_distractor = True
+        elif source == "cobol_evaluate_pattern.txt" and "EVALUATE" not in code_upper:
+            is_distractor = True
+        elif source == "cobol_fileio_pattern.txt" and not any(k in code_upper for k in ["FILE-CONTROL", "SELECT", "OPEN", "READ", "WRITE"]):
+            is_distractor = True
+        elif source == "cobol_occurs_pattern.txt" and "OCCURS" not in code_upper:
+            is_distractor = True
+
+        if not is_distractor:
+            # Inject full content (no truncation)
+            context[f"kb:{source}"] = doc["content"]
+            injected_count += 1
+            logger.info("Injected relevant KB document: %s", source)
 
     elapsed = time.perf_counter() - t0
     logs.append(
-        f"      [OK] Context keys: {len(context)}  |  "
-        f"KB docs on disk: {len(kb_files)}  [{elapsed:.3f}s]"
+        f"      [OK] Injected {injected_count} relevant pattern(s)  [{elapsed:.3f}s]"
     )
-    logger.info("RAG context ready: %d keys in %.3fs", len(context), elapsed)
+    logger.info("RAG context ready with %d injected documents in %.3fs", injected_count, elapsed)
     return context
+
 
 
 def _step_route(
@@ -180,13 +251,29 @@ def _step_translate(
     cobol_source: str,
     analysis: dict[str, Any],
     logs: list[str],
+    rag_context: dict[str, Any] = None,
 ) -> str:
-    """STEP 5 — Translate COBOL → Python via DeepSeek V3 (Expert 3)."""
+    """STEP 5 — Translate COBOL → Python via DeepSeek V3 (Expert 3).
+
+    Parameters
+    ----------
+    rag_context:
+        Context dict from ``_step_rag_context()``.  Forwarded to
+        ``generate_python()`` so KB snippets are injected into the LLM prompt.
+    """
     t0 = time.perf_counter()
     logs.append("[5/7] Generating Python code (Expert 3) …")
     logger.info("Translating via DeepSeek V3")
 
-    python_code = generate_python(cobol_source, structured_analysis=analysis)
+    kb_count = sum(1 for k in (rag_context or {}) if k.startswith("kb:"))
+    if kb_count:
+        logs.append(f"      [RAG] Injecting {kb_count} KB document(s) into translation prompt")
+
+    python_code = generate_python(
+        cobol_source,
+        structured_analysis=analysis,
+        rag_context=rag_context,
+    )
 
     char_count = len(python_code)
     line_count = python_code.count("\n") + 1
@@ -201,15 +288,42 @@ def _step_translate(
 def _step_sandbox_debug(
     python_code: str,
     logs: list[str],
+    test_cases: list = None,
+    test_code: str = "",
+    module_name: str = "migrated",
 ) -> dict[str, Any]:
-    """STEP 6 — Sandbox execution + debug loop (Expert 4 for hard errors)."""
+    """STEP 6 — Sandbox execution + debug loop (Expert 4 for hard errors).
+
+    Parameters
+    ----------
+    test_cases:
+        Oracle list from the COBOL scenario step.  Forwarded to
+        ``run_debug_loop()`` so logic errors (assertion failures, not
+        crashes) can be diagnosed and repaired by the LLM.
+    test_code:
+        The generated pytest suite (from Step 5.5).  Forwarded to
+        ``run_debug_loop()`` so that crash-free but logically wrong code
+        can be caught and corrected by running the full test suite inside
+        each debug iteration.
+    module_name:
+        Name used when writing the translated module inside the sandbox
+        (must match the ``from <module_name> import *`` in test_code).
+    """
     t0 = time.perf_counter()
     logs.append("[6/7] Sandbox execution + debug loop …")
     logger.info("Running sandbox + debug loop (max %d iterations)", SANDBOX_MAX_ITER)
 
+    if test_cases:
+        logs.append(f"      [DEBUG] Supplying {len(test_cases)} test oracle(s) for logic correction")
+    if test_code.strip():
+        logs.append(f"      [DEBUG] pytest suite wired into debug loop (module={module_name!r}) — logic failures will trigger re-fix")
+
     debug_result = run_debug_loop(
         initial_code=python_code,
+        test_cases=test_cases or [],
         max_iterations=SANDBOX_MAX_ITER,
+        test_code=test_code,
+        module_name=module_name,
     )
 
     elapsed = time.perf_counter() - t0
@@ -231,6 +345,53 @@ def _step_sandbox_debug(
         "error_summary": debug_result.error_summary,
         "_debug_result": debug_result,   # raw object for confidence scoring
     }
+
+
+def _step_generate_cobol_scenarios(
+    cobol_source: str,
+    analysis: dict[str, Any],
+    logs: list[str],
+) -> dict[str, Any]:
+    """STEP 1.5 — Derive abstract COBOL test scenarios (fast, rule-based)."""
+    t0 = time.perf_counter()
+    logs.append("[1.5] Generating COBOL test scenarios …")
+    logger.info("Generating COBOL test scenarios")
+
+    # Use TestExpert in rule-based mode (no python_code yet, no LLM call)
+    result = _test_expert.run(
+        python_code="",
+        cobol_source=cobol_source,
+        structure_analysis=analysis,
+    )
+
+    scenario_count = len(result.get("test_cases", []))
+    elapsed = time.perf_counter() - t0
+    logs.append(f"      [OK] {scenario_count} test scenario(s) derived  [{elapsed:.3f}s]")
+    logger.info("COBOL scenarios: %d in %.3fs", scenario_count, elapsed)
+    return result
+
+
+def _step_generate_pytest(
+    python_code: str,
+    cobol_source: str,
+    analysis: dict[str, Any],
+    logs: list[str],
+) -> dict[str, Any]:
+    """STEP 5.5 — Generate filled pytest suite via LLM (TestExpert)."""
+    t0 = time.perf_counter()
+    logs.append("[5.5] Generating equivalent pytest suite (LLM) …")
+    logger.info("Generating pytest suite via LLM")
+
+    result = _test_expert.run(
+        python_code=python_code,
+        cobol_source=cobol_source,
+        structure_analysis=analysis,
+    )
+
+    elapsed = time.perf_counter() - t0
+    logs.append(f"      [OK] Pytest suite generated  [{elapsed:.3f}s]")
+    logger.info("Pytest suite ready in %.3fs", elapsed)
+    return result
 
 
 def _step_validate(
@@ -330,20 +491,28 @@ def run_pipeline(cobol_code: str) -> dict[str, Any]:
         analysis = _step_build_analysis(preprocessed, logs)
         timings["structure"] = round(time.time() - t, 3)
 
-        # ── Step 3: RAG context ────────────────────────────────────
+        # ── Step 1.5: COBOL test scenarios (rule-based) ────────────
         t = time.time()
-        _step_rag_context(preprocessed, logs)
-        timings["rag"] = round(time.time() - t, 3)
+        cobol_scenarios = _step_generate_cobol_scenarios(
+            preprocessed["cleaned_source"], analysis, logs
+        )
+        timings["cobol_scenarios"] = round(time.time() - t, 3)
 
         # ── Step 4: Route (SmolLM) ─────────────────────────────────
         t = time.time()
         route = _step_route(preprocessed["cleaned_source"], analysis, logs)
         timings["router"] = round(time.time() - t, 3)
 
+        # ── Step 3: RAG context ────────────────────────────────────
+        t = time.time()
+        rag_context = _step_rag_context(preprocessed, logs, route=route)
+        timings["rag"] = round(time.time() - t, 3)
+
         # ── Step 5: Translate (Groq) ───────────────────────────────
         t = time.time()
         python_code = _step_translate(
-            preprocessed["cleaned_source"], analysis, logs
+            preprocessed["cleaned_source"], analysis, logs,
+            rag_context=rag_context,  # FIX: forward RAG context to translation agent
         )
         timings["translation"] = round(time.time() - t, 3)
 
@@ -355,15 +524,122 @@ def run_pipeline(cobol_code: str) -> dict[str, Any]:
                 "result": {"status": "FAILED", "error": "No code generated"},
             }
 
+        # ── Step 5.5: Generate filled pytest suite (LLM) ──────────
+        t = time.time()
+        pytest_data = _step_generate_pytest(
+            python_code, preprocessed["cleaned_source"], analysis, logs
+        )
+        timings["pytest_gen"] = round(time.time() - t, 3)
+
+        # ── Derive module name from COBOL program ID (shared by Step 6 & 7.5) ──
+        module_name = analysis.get("program_id", "program").lower().replace("-", "_")
+
         # ── Step 6: Sandbox + debug loop ──────────────────────────
         t = time.time()
-        exec_info = _step_sandbox_debug(python_code, logs)
+        exec_info = _step_sandbox_debug(
+            python_code, logs,
+            test_cases=cobol_scenarios.get("test_cases", []),
+            test_code=pytest_data.get("test_code", ""),
+            module_name=module_name,   # FIX: pass correct name so sandbox_pytest imports work
+        )
         timings["execution"] = round(time.time() - t, 3)
 
         # ── Step 7: Validate ───────────────────────────────────────
         t = time.time()
         validation = _step_validate(exec_info, logs)
         timings["validation"] = round(time.time() - t, 3)
+
+        # ── Step 7.5: Run pytest suite in sandbox ──────────────────
+        t = time.time()
+        # module_name already computed above — reused here
+        logs.append("[7.5] Running equivalent pytest suite in sandbox …")
+        test_results = sandbox_pytest(
+            module_code=exec_info["final_code"],
+            test_code=pytest_data.get("test_code", ""),
+            module_name=module_name,
+            timeout=PYTEST_SANDBOX_TIMEOUT,
+        )
+        n_pass = len(test_results["passed"])
+        n_fail = len(test_results["failed"])
+        logs.append(f"      [OK] {test_results['summary']}  [{round(time.time()-t,3)}s]")
+        timings["pytest_run"] = round(time.time() - t, 3)
+
+        # ── Step 8: Explainability Analysis ─────────────────────────
+        t = time.time()
+        logs.append("[8/8] Running explainability analysis …")
+
+        # Extract debug_log early so the XAI partial result can use it
+        debug_log = exec_info["debug_log"]
+
+        # Build partial result for XAI (before xai key exists)
+        _partial_result = {
+            "python_code": exec_info["final_code"],
+            "result": {
+                "status": "SUCCESS" if validation["is_valid"] else "PARTIAL",
+                "confidence_score": compute_confidence(
+                    exec_info["_debug_result"], {"pass_rate": validation["pass_rate"]}
+                ),
+                "debug_passed": exec_info["debug_passed"],
+                "iterations": exec_info["iterations"],
+                "complexity": route,
+            },
+            "validation": validation,
+            "timing": timings,
+            "test_results": test_results,
+            "agents": {  # minimal agent data for XAI
+                "expert_1_structure": {
+                    "program_id": analysis.get("program_id", "UNKNOWN"),
+                    "complexity": "complex" if any([
+                        analysis.get("has_file_io"),
+                        analysis.get("has_occurs"),
+                        analysis.get("has_redefines"),
+                        analysis.get("line_count", 0) > 40,
+                    ]) else "simple",
+                    "paragraphs": analysis.get("paragraphs", []),
+                    "model": "rule-based (no LLM)",
+                    "status": "success",
+                    "file_io": analysis.get("has_file_io", False),
+                },
+                "expert_2_router": {
+                    "model": "SmolLM via Ollama (rule-based fallback)",
+                    "decision": route,
+                    "reason": "complex signals detected" if route == "complex"
+                               else "no complex signals",
+                    "status": "success",
+                },
+                "expert_3_translation": {
+                    "model": "Groq llama-3.3-70b-versatile",
+                    "chars": len(exec_info["final_code"]),
+                    "lines": len(exec_info["final_code"].splitlines()),
+                    "status": "success",
+                },
+                "expert_4_debug": {
+                    "model": "Groq llama-3.3-70b-versatile (escalation) + rule-based",
+                    "iterations": exec_info["iterations"],
+                    "log": [
+                        {
+                            "iteration": r.iteration,
+                            "error_type": r.error_type,
+                            "fix_applied": r.fix_applied,
+                            "status": r.status,
+                        }
+                        for r in debug_log
+                    ],
+                    "status": "success" if exec_info["debug_passed"] else "failed",
+                },
+                "expert_5_validation": {
+                    "model": "rule-based (no LLM)",
+                    "pass_rate": 1.0 if validation["pass_rate"] == 100 else 0.0,
+                    "status": "success" if validation["pass_rate"] == 100 else "failed",
+                },
+            },
+            "logs": logs,
+        }
+        xai_data = generate_xai_report(_partial_result, preprocessed["cleaned_source"])
+        xai_elapsed = round(time.time() - t, 3)
+        timings["xai_analysis"] = xai_elapsed
+        logs.append(f"      [OK] XAI report generated  [{xai_elapsed:.3f}s]")
+
 
         # ── Assemble result ────────────────────────────────────────
         total_time = round(sum(v for k, v in timings.items()), 3)
@@ -392,9 +668,12 @@ def run_pipeline(cobol_code: str) -> dict[str, Any]:
                 "complexity":       route,
                 "confidence_score": confidence,
             },
-            "confidence":  confidence,  # top-level alias for UI
-            "validation":  validation,
-            "timing":      timings,
+            "confidence":    confidence,  # top-level alias for UI
+            "validation":    validation,
+            "timing":        timings,
+            "test_results":  test_results,   # sandbox_pytest structured output
+            "pytest_data":   pytest_data,    # raw test_code + test_cases metadata
+            "xai":           xai_data,       # explainability report
             # ── Per-agent metadata — read by the Agents tab ─────────
             "agents": {
                 "expert_1_structure": {

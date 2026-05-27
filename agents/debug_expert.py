@@ -3,6 +3,7 @@
 import re
 from openai import OpenAI
 from config import GROQ_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, OPENAI_MAX_TOKENS
+from agents.retry import call_with_retry
 
 _client = OpenAI(api_key=GROQ_API_KEY, base_url=OPENAI_BASE_URL)
 
@@ -21,12 +22,13 @@ def fix_code(broken_code: str, error_type: str, stderr: str, stdout: str) -> str
     """
     user_message = (
         f"ERROR TYPE: {error_type}\n"
-        f"STDERR:\n{stderr[:1000]}\n"
+        f"STDERR / PYTEST REPORT:\n{stderr[:2000]}\n"
         f"STDOUT:\n{stdout[:500]}\n\n"
         f"BROKEN CODE:\n{broken_code}"
     )
 
-    response = _client.chat.completions.create(
+    response = call_with_retry(
+        _client.chat.completions.create,
         model=OPENAI_MODEL,
         max_tokens=OPENAI_MAX_TOKENS,
         temperature=0,

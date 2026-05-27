@@ -74,3 +74,131 @@ def sandbox_execute(code: str, timeout: int = 5) -> dict:
         return {"returncode": -1, "stdout": "", "stderr": str(exc)}
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def sandbox_pytest(module_code: str, test_code: str, module_name: str = "migrated",
+                   timeout: int = 30, maxfail: int = None) -> dict:
+    """
+    Run a pytest suite safely inside a subprocess sandbox.
+
+    Writes the translated Python module and the generated pytest file to a
+    temp directory, executes ``python -m pytest --tb=short -v``, parses the
+    verbose stdout, and returns a structured result dict:
+
+    Returns
+    -------
+    dict with keys:
+        passed  – list of test node-ids that passed
+        failed  – list of test node-ids that failed / errored
+        errors  – list of collection/import errors (strings)
+        summary – human-readable one-liner (e.g. "3 passed, 1 failed")
+        stdout  – raw pytest stdout
+        stderr  – raw pytest stderr
+        returncode – pytest exit code (0 = all pass, 1 = some fail, 5 = no tests)
+    """
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        # Write the translated module so the test file can import it
+        module_path = os.path.join(tmp_dir, f"{module_name}.py")
+        with open(module_path, "w", encoding="utf-8") as fh:
+            fh.write(module_code)
+
+        # Write the generated pytest test file
+        test_path = os.path.join(tmp_dir, f"test_{module_name}.py")
+        with open(test_path, "w", encoding="utf-8") as fh:
+            fh.write(test_code)
+
+        # Write a conftest.py that redirects stdin to prevent interactive hangs
+        # when the imported module calls input() at module level
+        conftest_path = os.path.join(tmp_dir, "conftest.py")
+        with open(conftest_path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "import sys, io\n"
+                "sys.stdin = io.StringIO('')  # prevent input() hangs during import\n"
+            )
+
+        cmd = [sys.executable, "-m", "pytest", f"test_{module_name}.py",
+               "--tb=short", "-v", "--no-header"]
+        if maxfail is not None:
+            cmd.append(f"--maxfail={str(maxfail)}")
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=tmp_dir,
+        )
+
+        # ── Detect pytest not installed ────────────────────────────────
+        if "No module named pytest" in result.stderr:
+            return {
+                "passed": [], "failed": [], "errors": ["pytest not installed"],
+                "summary": "Error: pytest not installed in this environment",
+                "stdout": result.stdout, "stderr": result.stderr,
+                "returncode": result.returncode,
+            }
+
+        # ── Parse verbose pytest output ────────────────────────────────
+        passed, failed, errors = [], [], []
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if " PASSED" in stripped:
+                node = stripped.split(" PASSED")[0].strip()
+                passed.append(node)
+            elif " FAILED" in stripped:
+                node = stripped.split(" FAILED")[0].strip()
+                failed.append(node)
+            elif stripped.startswith("ERROR ") or "ERROR collecting" in stripped:
+                errors.append(stripped)
+
+        # Also capture collection errors from stderr (import failures etc.)
+        if result.returncode == 2 and not errors:
+            # returncode 2 = interrupted / collection error
+            for line in (result.stdout + result.stderr).splitlines():
+                if any(kw in line for kw in ["ImportError", "ModuleNotFoundError",
+                                              "SyntaxError", "NameError", "ERROR"]):
+                    errors.append(line.strip())
+                    break
+
+        total = len(passed) + len(failed)
+        if total == 0 and result.returncode == 5:
+            summary = "No tests collected (collection may have failed)"
+        elif total == 0 and errors:
+            summary = f"Collection error: {errors[0][:80]}"
+        else:
+            parts = []
+            if passed:
+                parts.append(f"{len(passed)} passed")
+            if failed:
+                parts.append(f"{len(failed)} failed")
+            if errors:
+                parts.append(f"{len(errors)} error(s)")
+            summary = ", ".join(parts) if parts else "0 tests"
+
+        return {
+            "passed":     passed,
+            "failed":     failed,
+            "errors":     errors,
+            "summary":    summary,
+            "stdout":     result.stdout,
+            "stderr":     result.stderr,
+            "returncode": result.returncode,
+        }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "passed": [], "failed": [], "errors": [],
+            "summary": f"TimeoutExpired after {timeout}s",
+            "stdout": "", "stderr": f"TimeoutExpired: pytest ran longer than {timeout}s",
+            "returncode": -1,
+        }
+    except Exception as exc:
+        return {
+            "passed": [], "failed": [], "errors": [],
+            "summary": f"Exception: {exc}",
+            "stdout": "", "stderr": str(exc),
+            "returncode": -1,
+        }
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
