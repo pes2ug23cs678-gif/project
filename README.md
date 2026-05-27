@@ -105,7 +105,8 @@ project/
 │
 ├── rag/                        # Retrieval-Augmented Generation
 │   ├── __init__.py
-│   └── rag_engine.py           # Knowledge base ingestion
+│   ├── rag_engine.py           # Knowledge base ingestion
+│   └── vector_store.py         # Local ChromaDB Semantic Search Engine
 │
 ├── execution/                  # Code execution & validation
 │   ├── __init__.py
@@ -128,7 +129,12 @@ project/
 │   └── app.py                  # Streamlit dashboard
 │
 └── data/                       # Data files
-    └── knowledge_base/         # RAG knowledge store
+    ├── knowledge_base/         # RAG knowledge store
+    │   ├── cobol_evaluate_pattern.txt  # Evaluate construct guide
+    │   ├── cobol_fileio_pattern.txt    # File I/O construct guide
+    │   ├── cobol_occurs_pattern.txt    # Occurs loop guide
+    │   └── *.txt                       # Reference COBOL programs
+    └── vector_store/           # Persistent ChromaDB vector database
 ```
 
 ---
