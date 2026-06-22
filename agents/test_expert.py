@@ -210,7 +210,7 @@ class TestExpert(BaseExpert):
             '"""', f"Auto-generated test suite for {module}.",
             "", f"Run with:  pytest test_{module}.py -v", '"""',
             "", "import pytest",
-            f"from {module} import *  # noqa: F401,F403",
+            f"import {module}",
             "", "",
         ]
         for tc in cases:

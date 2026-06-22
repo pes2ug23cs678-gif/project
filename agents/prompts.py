@@ -397,14 +397,15 @@ Follow these steps IN ORDER:
 1. **READ** each COBOL paragraph and understand what it computes.
 2. **DERIVE** the expected output for each test scenario by manually
    tracing through the COBOL logic with the given inputs.
-3. **CHOOSE** the right assertion pattern for each test category:
-   - `happy_path`  → `assert function() == expected_value`
-   - `boundary`    → `assert function(min_val)` and `assert function(max_val)`
-   - `type_check`  → `assert isinstance(var, expected_type)`
+3. **CHOOSE** the right assertion pattern for each test category (always using the module prefix, e.g. `module.function()` or `module.variable`):
+   - `happy_path`  → `assert module.function() == expected_value`
+   - `boundary`    → `assert module.function(min_val)` and `assert module.function(max_val)`
+   - `type_check`  → `assert isinstance(module.var, expected_type)`
    - `error`       → `with pytest.raises(ExpectedException):`
-4. **WRITE** the assertions, replacing every `pass` stub.
+4. **WRITE** the assertions, replacing every `pass` stub. Always prefix all module functions, variables, and file handlers with the imported module name (e.g. `module.function()`, `module.variable = value`, `module._file_fh`), as all state and handlers must be set up and checked within the module namespace directly.
 5. **VERIFY** that each test is self-contained and does not depend on
-   execution order.
+   execution order. Make sure to stub/create any files (like input data files) inside the test or check if they are set up.
+
 
 ## Few-Shot Example
 
