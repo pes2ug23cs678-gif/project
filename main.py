@@ -1,10 +1,12 @@
 """Main integration layer — COBOL-to-Python migration pipeline.
 
 Model combination:
-    Translation Expert  ->  DeepSeek V3 via OpenAI-compatible API
-    Debug Expert        ->  DeepSeek V3 via OpenAI-compatible API
+    Translation Expert  ->  Groq (llama-3.1-8b-instant) via OpenAI-compatible API
+    Debug Expert        ->  Groq (llama-3.1-8b-instant) via OpenAI-compatible API
+    Test Expert         ->  Groq (llama-3.1-8b-instant) via OpenAI-compatible API
     Router (SLM)        ->  SmolLM via Ollama (local, lightweight)
     Execution           ->  subprocess sandbox (no model at all)
+    Explainability      ->  post-hoc analysis (no LLM)
 
 Usage:
     python main.py                        # interactive CLI
@@ -485,7 +487,7 @@ def run_pipeline(cobol_code: str) -> dict[str, Any]:
 
     logs.append("=" * 64)
     logs.append("  COBOL -> Python Migration Pipeline")
-    logs.append("  Stack: DeepSeek V3 (translate+debug) | SmolLM (route) | subprocess (exec)")
+    logs.append("  Stack: Groq LLM (translate+debug+test) | SmolLM (route) | subprocess (exec)")
     logs.append("=" * 64)
 
     if not cobol_code or not cobol_code.strip():

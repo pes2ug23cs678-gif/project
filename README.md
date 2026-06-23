@@ -28,9 +28,11 @@ This project implements an end-to-end **COBOL-to-Python code migration pipeline*
 
 - **Router Agent** — SmolLM (135m via Ollama) routes tasks via complexity analysis or rule-based fallbacks.
 - **Semantic RAG Engine** — ChromaDB vector store + local Sentence-Transformers (`all-MiniLM-L6-v2`) retrieval with ExpertRAG gating and OPEN-RAG distractor filtering.
-- **Translation Expert** — Groq (llama-3.3-70b-versatile) translates COBOL constructs to idiomatic Python, guided by rigid field-width calculation and structural rules.
-- **Debug Expert** — Groq operates alongside a deterministic, deterministic quick-fixer to automatically patch syntax and runtime errors iteratively.
+- **Translation Expert** — Groq (`llama-3.1-8b-instant` via OpenAI-compatible API) translates COBOL constructs to idiomatic Python, guided by rigid field-width calculation and structural rules.
+- **Test Expert** — Groq generates pytest suites from COBOL semantics + translated Python, wired into the debug loop for logic-level regression.
+- **Debug Expert** — Groq operates alongside a deterministic quick-fixer to automatically patch syntax, runtime, and logic errors iteratively.
 - **Execution Sandbox** — A pure subprocess sandbox (no LLM, auto-stubs missing data files) safely evaluates generated code.
+- **Explainability (XAI)** — Post-hoc analysis module producing confidence decomposition, agent contribution scores, translation pattern detection, and risk indicators — no additional LLM calls.
 
 The system is augmented with **Retrieval-Augmented Generation (RAG)** for context-aware translation and features a **confidence-scoring engine** and a **research-grade evaluation framework** for comparative analysis.
 
@@ -52,6 +54,10 @@ The system is augmented with **Retrieval-Augmented Generation (RAG)** for contex
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
+               │ 1.5 COBOL Scenarios   │  Derive abstract test cases (rule-based)
+               └───────────┬───────────┘
+                           ▼
+               ┌───────────────────────┐
                │ 3. Route (SmolLM/Rule)│  Determine complexity
                └───────────┬───────────┘
                            ▼
@@ -64,15 +70,27 @@ The system is augmented with **Retrieval-Augmented Generation (RAG)** for contex
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │ 6. Sandbox + Debug    │  Rule-based + Groq iteration
+               │ 5.5 Pytest Gen (LLM)  │  Generate pytest suite from code + COBOL
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │   7. Validation       │  Calculate Confidence Score
+               │ 6. Sandbox + Debug    │  Rule-based + Groq iteration + pytest
                └───────────┬───────────┘
                            ▼
                ┌───────────────────────┐
-               │   Generated Python    │  Final output & Agents UI payload
+               │   7. Validation       │  Final sandbox re-run & pass rate
+               └───────────┬───────────┘
+                           ▼
+               ┌───────────────────────┐
+               │ 7.5 Pytest Execution  │  Full pytest suite in sandbox
+               └───────────┬───────────┘
+                           ▼
+               ┌───────────────────────┐
+               │ 8. Explainability     │  XAI report: confidence, risks, patterns
+               └───────────┬───────────┘
+                           ▼
+               ┌───────────────────────┐
+               │   Generated Python    │  Final output + confidence + XAI report
                └───────────────────────┘
 ```
 
@@ -83,8 +101,9 @@ The system is augmented with **Retrieval-Augmented Generation (RAG)** for contex
 
 ```
 project/
-├── main.py                     # 7-step Pipeline entry point (CLI + API)
+├── main.py                     # 10-stage pipeline entry point (CLI + API)
 ├── config.py                   # Centralized model & routing config
+├── explainability.py           # Post-hoc XAI analysis (confidence, risks, patterns)
 ├── requirements.txt            # Python dependencies
 │
 ├── agents/                     # Multi-agent system
@@ -93,8 +112,9 @@ project/
 │   ├── router.py               # SmolLM routing & rule-based fallback
 │   ├── structure_expert.py     # Legacy COBOL structure analysis
 │   ├── translation_expert.py   # Groq COBOL → Python translation
-│   ├── test_expert.py          # Test case generation
+│   ├── test_expert.py          # Test case generation (rule-based + LLM pytest)
 │   ├── debug_expert.py         # Groq code repair
+│   ├── retry.py                # LLM API retry logic with backoff
 │   ├── prompts.py              # Prompt templates
 │   └── examples.py             # Few-shot examples
 │
@@ -110,9 +130,10 @@ project/
 ├── execution/                  # Code execution & validation
 │   ├── __init__.py
 │   ├── sandbox.py              # Secure subprocess sandbox (auto-stubs IO)
-│   ├── debug_loop.py           # Per-iteration timed debug loop
-│   ├── executor.py             # Legacy execution
-│   └── validator.py            # Legacy validation
+│   ├── debug_loop.py           # Generate → Execute → Fix → Repeat loop
+│   ├── executor.py             # Legacy SandboxExecutor class
+│   ├── validator.py            # Legacy validation
+│   └── test_execution.py       # Execution layer tests
 │
 ├── evaluation/                 # Research evaluation framework
 │   ├── __init__.py
@@ -282,12 +303,16 @@ print(result["result"]["confidence_score"])  # 0-100
 | Stage | Component | Description |
 |-------|--------|-------------|
 | **1. Preprocessing** | `preprocessing/preprocessor.py` | Normalizes COBOL source, chunks by procedure/paragraph |
-| **2. Structured Analysis**| `main.py` | Extracts paragraphs and determines file I/O requirements |
+| **2. Structured Analysis** | `main.py` | Extracts paragraphs, program ID, and file I/O requirements |
+| **1.5 COBOL Scenarios** | `agents/test_expert.py` | Derives abstract test cases from COBOL structure (rule-based, no LLM) |
 | **3. Routing** | `agents/router.py` | Classifies complexity using SmolLM via Ollama (or rule-based fallback) |
 | **4. Semantic RAG** | `rag/vector_store.py` | Performs vector search, applies ExpertRAG gating and OPEN-RAG distractor filtering |
-| **5. Translation** | `agents/translation_expert.py` | Main AST to Idiomatic Python translation via Groq (`llama-3.3-70b-versatile`) |
-| **6. Execution + Debug**| `execution/debug_loop.py` & `sandbox.py` | Sandbox evaluation with quick iterative rule-based and LLM-assisted patching |
-| **7. Validation** | `main.py` | Verifies success and assigns a holistic confidence score percentage |
+| **5. Translation** | `agents/translation_expert.py` | COBOL → Idiomatic Python translation via Groq (`llama-3.1-8b-instant`) |
+| **5.5 Pytest Generation** | `agents/test_expert.py` | Generates pytest suite from translated Python + COBOL via LLM |
+| **6. Execution + Debug** | `execution/debug_loop.py` & `sandbox.py` | Sandbox evaluation with rule-based quick fixes, LLM-assisted patching, and pytest logic validation |
+| **7. Validation** | `main.py` | Final sandbox re-run to compute pass rate |
+| **7.5 Pytest Execution** | `execution/sandbox.py` | Runs the full generated pytest suite in an isolated sandbox |
+| **8. Explainability** | `explainability.py` | Post-hoc XAI: confidence decomposition, agent contributions, pattern detection, risk indicators |
 
 
 ---
