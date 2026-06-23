@@ -2,10 +2,18 @@
 
 import re
 from openai import OpenAI
-from config import GROQ_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, OPENAI_MAX_TOKENS
 from agents.retry import call_with_retry
 
-_client = OpenAI(api_key=GROQ_API_KEY, base_url=OPENAI_BASE_URL)
+_client = None
+
+
+def _get_client() -> OpenAI:
+    """Lazy-init the OpenAI client so .env is loaded before we read the key."""
+    global _client
+    if _client is None:
+        from config import GROQ_API_KEY, OPENAI_BASE_URL
+        _client = OpenAI(api_key=GROQ_API_KEY, base_url=OPENAI_BASE_URL)
+    return _client
 
 TRANSLATION_PROMPT = """
 You are a COBOL-to-Python translation engine. You receive COBOL source code
@@ -269,8 +277,11 @@ def generate_python(
                 f"{kb_block}"
             )
 
+    from config import OPENAI_MODEL, OPENAI_MAX_TOKENS
+    client = _get_client()
+
     response = call_with_retry(
-        _client.chat.completions.create,
+        client.chat.completions.create,
         model=OPENAI_MODEL,
         max_tokens=OPENAI_MAX_TOKENS,
         temperature=0,

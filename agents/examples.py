@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from agents import AgentController
+from agents.agent_controller import AgentController
 
 
 SAMPLE_COBOL = """\
@@ -46,43 +46,17 @@ def run_normal_pipeline() -> None:
     controller = AgentController()
     result = controller.run(cobol_source=SAMPLE_COBOL)
 
-    print(f"\nRouting     : {result['routing']['complexity']} "
-          f"(score {result['routing']['score']})")
-    print(f"Structure   : {result['structure'].get('program_id', 'N/A')}")
-    print(f"Translation : {len(result['translation'].get('python_code', ''))} chars")
-    print(f"Tests       : {len(result['tests'].get('test_cases', []))} cases")
-    print(f"Iterations  : {result['iterations']}")
+    routing = result.get("routing", {})
+    print(f"\nRouting     : {routing.get('complexity', 'N/A')}")
+    print(f"Structure   : {result.get('structure', {}).get('program_id', 'N/A')}")
+    print(f"Translation : {len(result.get('translation', {}).get('python_code', ''))} chars")
+    print(f"Tests       : {len(result.get('tests', {}).get('test_cases', []))} cases")
+    print(f"Iterations  : {result.get('iterations', 0)}")
 
-    print("\n--- Generated Python ---")
-    print(result["translation"]["python_code"])
-
-
-def run_debug_pipeline() -> None:
-    """Demonstrate the debug-loop pipeline."""
-    print("\n" + "=" * 60)
-    print("  DEBUG PIPELINE RUN")
-    print("=" * 60)
-
-    error = (
-        "Traceback (most recent call last):\n"
-        '  File "payroll.py", line 17, in main\n'
-        "    calculate_tax()\n"
-        '  File "payroll.py", line 8, in calculate_tax\n'
-        '    ws_tax = ws_salry * Decimal("0.30")\n'
-        "NameError: name 'ws_salry' is not defined. "
-        "Did you mean: 'ws_salary'?"
-    )
-
-    controller = AgentController()
-    result = controller.run(cobol_source=SAMPLE_COBOL, error_message=error)
-
-    print(f"\nDebug history: {len(result['debug_history'])} entries")
-    for entry in result["debug_history"]:
-        print(f"  iter {entry.get('iteration')}: "
-              f"{entry.get('error_type', 'N/A')} "
-              f"(severity {entry.get('severity', '?')}/5) — "
-              f"{entry.get('error_summary', 'N/A')}")
-    print(f"Iterations  : {result['iterations']}")
+    code = result.get("translation", {}).get("python_code", "")
+    if code:
+        print("\n--- Generated Python ---")
+        print(code)
 
 
 if __name__ == "__main__":
@@ -91,4 +65,3 @@ if __name__ == "__main__":
         format="%(levelname)-5s | %(name)s | %(message)s",
     )
     run_normal_pipeline()
-    run_debug_pipeline()

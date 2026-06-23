@@ -1,4 +1,15 @@
-"""Pipeline orchestrator for the COBOL-to-Python multi-agent system."""
+"""Pipeline orchestrator for the COBOL-to-Python multi-agent system.
+
+This module provides the ``AgentController`` class, which coordinates the
+full migration pipeline: routing → structure analysis → translation →
+debug loop → test generation.
+
+Usage
+-----
+>>> controller = AgentController()
+>>> result = controller.run(cobol_source=src)
+>>> print(result["translation"]["python_code"])
+"""
 
 from __future__ import annotations
 
@@ -6,11 +17,11 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from config import Complexity, PipelineConfig
-from agents.router import Router, RoutingResult
+from config import PipelineConfig
+from agents.router import classify as route_classify
 from agents.structure_expert import StructureExpert
-from agents.translation_expert import TranslationExpert
-from agents.debug_expert import DebugExpert
+from agents.translation_expert import generate_python
+from agents.debug_expert import fix_code
 from agents.test_expert import TestExpert
 
 logger = logging.getLogger(__name__)
@@ -26,7 +37,7 @@ class PipelineState:
 
     cobol_source: str = ""
     context: dict[str, Any] = field(default_factory=dict)
-    routing: RoutingResult | None = None
+    routing: dict[str, Any] = field(default_factory=dict)
     structure: dict[str, Any] = field(default_factory=dict)
     translation: dict[str, Any] = field(default_factory=dict)
     tests: dict[str, Any] = field(default_factory=dict)
@@ -36,12 +47,7 @@ class PipelineState:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "routing": {
-                "complexity": self.routing.complexity.value if self.routing else "",
-                "score": self.routing.score if self.routing else 0,
-                "dimensions": self.routing.dimensions if self.routing else {},
-                "recommended_flow": self.routing.recommended_flow if self.routing else [],
-            },
+            "routing": self.routing,
             "structure": self.structure,
             "translation": self.translation,
             "tests": self.tests,
@@ -61,20 +67,11 @@ class AgentController:
     ----------
     config : PipelineConfig, optional
         Top-level configuration.
-
-    Usage
-    -----
-    >>> controller = AgentController()
-    >>> result = controller.run(cobol_source=src)
-    >>> print(result["translation"]["python_code"])
     """
 
     def __init__(self, config: PipelineConfig | None = None) -> None:
         self._config = config or PipelineConfig()
-        self.router = Router()
         self.structure_expert = StructureExpert()
-        self.translation_expert = TranslationExpert()
-        self.debug_expert = DebugExpert()
         self.test_expert = TestExpert()
 
     # ------------------------------------------------------------------
@@ -104,9 +101,10 @@ class AgentController:
         )
 
         state = self._step_route(state)
-        logger.info("Routed: %s (score=%.2f)", state.routing.complexity.value, state.routing.score)
+        route = state.routing.get("complexity", "simple")
+        logger.info("Routed: %s", route)
 
-        if "structure_expert" in (state.routing.recommended_flow or []):
+        if route == "complex":
             state = self._step_structure(state)
             logger.info("Structure: %s", state.structure.get("program_id"))
 
@@ -126,10 +124,17 @@ class AgentController:
     # ------------------------------------------------------------------
 
     def _step_route(self, state: PipelineState) -> PipelineState:
-        state.routing = self.router.classify({
-            "cobol_source": state.cobol_source,
-            "context": state.context,
-        })
+        route = route_classify(state.cobol_source)
+        state.routing = {
+            "complexity": route,
+            "score": 1.0 if route == "complex" else 0.0,
+            "dimensions": {},
+            "recommended_flow": (
+                ["structure_expert", "translation_expert", "debug_expert"]
+                if route == "complex"
+                else ["translation_expert"]
+            ),
+        }
         return state
 
     def _step_structure(self, state: PipelineState) -> PipelineState:
@@ -139,16 +144,11 @@ class AgentController:
         return state
 
     def _step_translate(self, state: PipelineState) -> PipelineState:
-        structure = state.structure or {
-            "program_id": "UNKNOWN", "divisions": [], "sections": {},
-            "paragraphs": [], "paragraph_details": [], "data_items": [],
-            "flow_summary": "",
-        }
-        state.translation = self.translation_expert.run(
-            structure_analysis=structure,
-            cobol_source=state.cobol_source,
-            context=state.context,
+        python_code = generate_python(
+            cobol_code=state.cobol_source,
+            structured_analysis=state.structure or None,
         )
+        state.translation = {"python_code": python_code}
         state.iteration += 1
         return state
 
@@ -169,23 +169,19 @@ class AgentController:
             retries += 1
             logger.info("Debug %d/%d", retries, max_retries)
 
-            debug_result = self.debug_expert.run(
-                python_code=state.translation.get("python_code", ""),
-                error_message=state.error_message,
-                cobol_source=state.cobol_source,
-                context=state.context,
+            fixed = fix_code(
+                broken_code=state.translation.get("python_code", ""),
+                error_type="runtime",
+                stderr=state.error_message,
+                stdout="",
             )
             state.debug_history.append({
                 "iteration": retries,
-                "error_type": debug_result["error_type"],
-                "error_summary": debug_result["error_summary"],
-                "severity": debug_result.get("severity", 0),
-                "root_cause": debug_result.get("root_cause", ""),
-                "traceback_frames": debug_result.get("traceback_frames", []),
-                "offending_lines": debug_result.get("offending_lines", []),
-                "fix_suggestions": debug_result["fix_suggestions"],
+                "error_type": "runtime",
+                "error_summary": state.error_message[:200],
+                "severity": 3,
             })
-            state.translation["debug_prompt"] = debug_result["corrected_code_prompt"]
+            state.translation["python_code"] = fixed
             state.error_message = ""
             state.iteration += 1
 

@@ -93,9 +93,17 @@ def _step_build_analysis(preprocessed: dict[str, Any], logs: list[str]) -> dict[
     program_id = "UNKNOWN"
     for line in cleaned.splitlines():
         if "PROGRAM-ID" in line.upper():
-            parts = line.split(".")
-            if parts:
-                program_id = parts[0].split()[-1].strip()
+            # Handle both "PROGRAM-ID. NAME." and "PROGRAM-ID NAME."
+            after_keyword = line.upper().split("PROGRAM-ID")[-1]
+            # Strip dots, spaces, and other delimiters
+            name = after_keyword.replace(".", " ").strip().split()[0] if after_keyword.replace(".", " ").strip() else "UNKNOWN"
+            # Find original case from the line
+            for token in line.split():
+                if token.strip(".").upper() == name.upper():
+                    program_id = token.strip(".")
+                    break
+            else:
+                program_id = name
             break
 
     # Extract paragraph names (lines ending in a period with no leading space or known keywords)
@@ -406,13 +414,21 @@ def _step_validate(
     final_code = exec_info["final_code"]
     result = sandbox_execute(final_code, timeout=SANDBOX_TIMEOUT)
 
-    passed = result["returncode"] == 0 and not result["stderr"].strip()
+    # Filter Python warnings from stderr (DeprecationWarning, etc.)
+    import re as _re
+    real_stderr = "\n".join(
+        line for line in result["stderr"].splitlines()
+        if not _re.match(r'^.*:\d+:\s+\w*Warning:', line)
+        and not line.strip().startswith("warnings.warn(")
+    )
+
+    passed = result["returncode"] == 0 and not real_stderr.strip()
     pass_rate = 100 if passed else 0
 
     elapsed = time.perf_counter() - t0
     logs.append(f"      [OK] Pass rate: {pass_rate}%  [{elapsed:.3f}s]")
-    if not passed and result["stderr"].strip():
-        logs.append(f"      [FAIL] {result['stderr'].strip().splitlines()[-1]}")
+    if not passed and real_stderr.strip():
+        logs.append(f"      [FAIL] {real_stderr.strip().splitlines()[-1]}")
     logger.info("Validation: pass_rate=%d%%  in %.3fs", pass_rate, elapsed)
 
     return {

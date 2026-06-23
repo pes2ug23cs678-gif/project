@@ -10,10 +10,18 @@ from openai import OpenAI
 
 from agents.base import BaseExpert
 from agents.prompts import TestPrompt
-from config import GROQ_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, OPENAI_MAX_TOKENS
 
-# Shared LLM client (same backend as TranslationExpert)
-_client = OpenAI(api_key=GROQ_API_KEY, base_url=OPENAI_BASE_URL)
+# Shared LLM client (lazy init to avoid import-time crash)
+_client = None
+
+
+def _get_client() -> OpenAI:
+    """Lazy-init the OpenAI client so .env is loaded before we read the key."""
+    global _client
+    if _client is None:
+        from config import GROQ_API_KEY, OPENAI_BASE_URL
+        _client = OpenAI(api_key=GROQ_API_KEY, base_url=OPENAI_BASE_URL)
+    return _client
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +112,10 @@ class TestExpert(BaseExpert):
     def _call_llm(self, prompt: str, fallback: str) -> str:
         """Ask Groq to fill in pytest assertions. Returns fallback on failure."""
         try:
-            response = _client.chat.completions.create(
+            from config import OPENAI_MODEL, OPENAI_MAX_TOKENS
+            client = _get_client()
+
+            response = client.chat.completions.create(
                 model=OPENAI_MODEL,
                 max_tokens=OPENAI_MAX_TOKENS,
                 temperature=0,

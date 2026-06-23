@@ -25,3 +25,6 @@ Thumbs.db
 # Environment / secrets — never commit real API keys
 .env
 *.env
+
+# Data / DB
+data/vector_store/
